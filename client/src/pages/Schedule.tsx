@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -10,14 +9,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Play, Pause, RotateCcw, Plus, Trash2, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { Play, Pause, RotateCcw, Trash2, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { fmeVolumes, getTopicsByVolume } from "@/data/fmeVolumes";
 
 interface StudySession {
   id: string;
   volume: string;
   topic: string;
-  duration: number; // em minutos
+  duration: number;
   startTime: Date;
   endTime: Date;
   completedReviews: number[];
@@ -49,24 +49,12 @@ export default function Schedule() {
 
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
-  const [selectedVolume, setSelectedVolume] = useState("");
-  const [selectedTopic, setSelectedTopic] = useState("");
+  const [selectedVolumeId, setSelectedVolumeId] = useState("");
+  const [selectedTopicId, setSelectedTopicId] = useState("");
 
-  const volumes = [
-    "Volume 1 - Conjuntos e Funções",
-    "Volume 2 - Logaritmos",
-    "Volume 3 - Trigonometria",
-    "Volume 4 - Sequências",
-    "Volume 5 - Combinatória",
-    "Volume 6 - Probabilidade",
-    "Volume 7 - Estatística",
-    "Volume 8 - Limites",
-    "Volume 9 - Derivadas",
-    "Volume 10 - Integrais",
-    "Volume 11 - Geometria",
-  ];
+  const selectedVolume = fmeVolumes.find((v) => v.id === selectedVolumeId);
+  const topicsForVolume = selectedVolumeId ? getTopicsByVolume(selectedVolumeId) : [];
 
-  // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (timerActive) {
@@ -77,12 +65,10 @@ export default function Schedule() {
     return () => clearInterval(interval);
   }, [timerActive]);
 
-  // Save sessions to localStorage
   useEffect(() => {
     localStorage.setItem("studySessions", JSON.stringify(sessions));
   }, [sessions]);
 
-  // Save reviews to localStorage
   useEffect(() => {
     localStorage.setItem("scheduledReviews", JSON.stringify(reviews));
   }, [reviews]);
@@ -95,12 +81,13 @@ export default function Schedule() {
   };
 
   const startSession = () => {
-    if (!selectedVolume || !selectedTopic) {
+    if (!selectedVolume || !selectedTopicId) {
       toast.error("Selecione um volume e um tópico");
       return;
     }
+    const topic = topicsForVolume.find((t) => t.id === selectedTopicId);
     setTimerActive(true);
-    toast.success("Sessão de estudo iniciada!");
+    toast.success(`Sessão de estudo iniciada: ${topic?.name}`);
   };
 
   const endSession = () => {
@@ -109,10 +96,12 @@ export default function Schedule() {
       return;
     }
 
+    const topic = topicsForVolume.find((t) => t.id === selectedTopicId);
+    const volumeTitle = `Volume ${selectedVolume!.number} - ${selectedVolume!.title}`;
     const newSession: StudySession = {
       id: Date.now().toString(),
-      volume: selectedVolume,
-      topic: selectedTopic,
+      volume: volumeTitle,
+      topic: topic?.name || "",
       duration: Math.ceil(timerSeconds / 60),
       startTime: new Date(Date.now() - timerSeconds * 1000),
       endTime: new Date(),
@@ -121,7 +110,6 @@ export default function Schedule() {
 
     setSessions([...sessions, newSession]);
 
-    // Schedule reviews automatically
     const reviewDays = [1, 7, 30, 90];
     const newReviews = reviewDays.map((days) => {
       const scheduledDate = new Date();
@@ -129,8 +117,8 @@ export default function Schedule() {
       return {
         id: `${newSession.id}-${days}`,
         sessionId: newSession.id,
-        volume: selectedVolume,
-        topic: selectedTopic,
+        volume: volumeTitle,
+        topic: topic?.name || "",
         daysAfter: days,
         scheduledDate,
         completed: false,
@@ -139,10 +127,9 @@ export default function Schedule() {
 
     setReviews([...reviews, ...newReviews]);
 
-    // Reset timer
     setTimerActive(false);
     setTimerSeconds(0);
-    setSelectedTopic("");
+    setSelectedTopicId("");
 
     toast.success(`Sessão salva! ${newReviews.length} revisões agendadas.`);
   };
@@ -155,7 +142,7 @@ export default function Schedule() {
   const resetTimer = () => {
     setTimerActive(false);
     setTimerSeconds(0);
-    setSelectedTopic("");
+    setSelectedTopicId("");
     toast.info("Timer reiniciado");
   };
 
@@ -194,9 +181,8 @@ export default function Schedule() {
   return (
     <div className="min-h-screen bg-background pt-20 lg:pt-0 lg:ml-64 p-4 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl lg:text-5xl font-bold text-foreground mb-3" style={{ fontFamily: "'Poppins', sans-serif" }}>
+          <h1 className="text-4xl lg:text-5xl font-bold text-foreground mb-3">
             Cronograma de Estudos
           </h1>
           <p className="text-base lg:text-lg text-muted-foreground">
@@ -204,7 +190,6 @@ export default function Schedule() {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <Card className="p-6 bg-primary/5 border-primary/20">
             <div className="flex items-center justify-between">
@@ -237,7 +222,6 @@ export default function Schedule() {
           </Card>
         </div>
 
-        {/* Tabs */}
         <Tabs defaultValue="timer" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 bg-secondary">
             <TabsTrigger value="timer">Timer</TabsTrigger>
@@ -246,11 +230,9 @@ export default function Schedule() {
             <TabsTrigger value="history">Histórico</TabsTrigger>
           </TabsList>
 
-          {/* Timer Tab */}
           <TabsContent value="timer" className="space-y-6">
             <Card className="p-8">
               <div className="space-y-6">
-                {/* Timer Display */}
                 <div className="text-center">
                   <div className="text-6xl font-bold text-primary mb-4 font-mono">
                     {formatTime(timerSeconds)}
@@ -260,20 +242,22 @@ export default function Schedule() {
                   </p>
                 </div>
 
-                {/* Volume and Topic Selection */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-foreground mb-2 block">
                       Volume
                     </label>
-                    <Select value={selectedVolume} onValueChange={setSelectedVolume}>
+                    <Select value={selectedVolumeId} onValueChange={(id) => {
+                      setSelectedVolumeId(id);
+                      setSelectedTopicId("");
+                    }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um volume" />
                       </SelectTrigger>
                       <SelectContent>
-                        {volumes.map((vol) => (
-                          <SelectItem key={vol} value={vol}>
-                            {vol}
+                        {fmeVolumes.map((vol) => (
+                          <SelectItem key={vol.id} value={vol.id}>
+                            Volume {vol.number} - {vol.title}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -284,15 +268,21 @@ export default function Schedule() {
                     <label className="text-sm font-medium text-foreground mb-2 block">
                       Tópico
                     </label>
-                    <Input
-                      placeholder="Ex: Funções Exponenciais"
-                      value={selectedTopic}
-                      onChange={(e) => setSelectedTopic(e.target.value)}
-                    />
+                    <Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um tópico" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {topicsForVolume.map((topic) => (
+                          <SelectItem key={topic.id} value={topic.id}>
+                            {topic.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                {/* Controls */}
                 <div className="flex gap-3 justify-center flex-wrap">
                   {!timerActive ? (
                     <Button
@@ -340,7 +330,6 @@ export default function Schedule() {
             </Card>
           </TabsContent>
 
-          {/* Upcoming Reviews Tab */}
           <TabsContent value="upcoming" className="space-y-4">
             {upcomingReviews.length === 0 ? (
               <Card className="p-8 text-center">
@@ -387,7 +376,6 @@ export default function Schedule() {
             )}
           </TabsContent>
 
-          {/* Future Reviews Tab */}
           <TabsContent value="future" className="space-y-4">
             {futureReviews.length === 0 ? (
               <Card className="p-8 text-center">
@@ -423,7 +411,6 @@ export default function Schedule() {
             )}
           </TabsContent>
 
-          {/* History Tab */}
           <TabsContent value="history" className="space-y-4">
             <div className="space-y-4">
               {sessions.length === 0 ? (
