@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Guide from "./pages/Guide";
 import Calendar from "./pages/Calendar";
 import Schedule from "./pages/Schedule";
+import Dashboard from "./pages/Dashboard";
 
 function Router({ activeSection, onSectionChange }: { activeSection: string; onSectionChange: (section: string) => void }) {
   return (
@@ -25,6 +26,9 @@ function Router({ activeSection, onSectionChange }: { activeSection: string; onS
       </Route>
       <Route path={"/schedule"}>
         {() => <Schedule />}
+      </Route>
+      <Route path={"/dashboard"}>
+        {() => <Dashboard />}
       </Route>
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -43,6 +47,7 @@ function App() {
     if (section === "guide") window.location.href = "/guide";
     if (section === "calendar") window.location.href = "/calendar";
     if (section === "schedule") window.location.href = "/schedule";
+    if (section === "dashboard") window.location.href = "/dashboard";
   };
 
   return (
