@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Play, Pause, RotateCcw, Trash2, Clock, CheckCircle2, AlertCircle, BookOpen, Zap } from "lucide-react";
+import { Play, Pause, RotateCcw, Trash2, Clock, CheckCircle2, AlertCircle, BookOpen, Zap, Check } from "lucide-react";
 import { toast } from "sonner";
 import { fmeVolumes, getTopicsByVolume } from "@/data/fmeVolumes";
 
@@ -43,6 +43,14 @@ interface CompletedVolume {
   reviews: ScheduledReview[];
 }
 
+interface CompletedTopic {
+  id: string;
+  volumeId: string;
+  topicId: string;
+  topicName: string;
+  completionDate: Date;
+}
+
 export default function Schedule() {
   const [sessions, setSessions] = useState<StudySession[]>(() => {
     const saved = localStorage.getItem("studySessions");
@@ -66,6 +74,14 @@ export default function Schedule() {
         ...r,
         scheduledDate: new Date(r.scheduledDate),
       })),
+    })) : [];
+  });
+
+  const [completedTopics, setCompletedTopics] = useState<CompletedTopic[]>(() => {
+    const saved = localStorage.getItem("completedTopics");
+    return saved ? JSON.parse(saved).map((t: any) => ({
+      ...t,
+      completionDate: new Date(t.completionDate),
     })) : [];
   });
 
@@ -98,6 +114,10 @@ export default function Schedule() {
   useEffect(() => {
     localStorage.setItem("completedVolumes", JSON.stringify(completedVolumes));
   }, [completedVolumes]);
+
+  useEffect(() => {
+    localStorage.setItem("completedTopics", JSON.stringify(completedTopics));
+  }, [completedTopics]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -168,7 +188,6 @@ export default function Schedule() {
 
     const volumeTitle = `Volume ${selectedVolume.number} - ${selectedVolume.title}`;
     
-    // Verificar se o volume já foi marcado como completo
     if (completedVolumes.some((v) => v.volumeId === selectedVolumeId)) {
       toast.error("Este volume já foi marcado como completo");
       return;
@@ -205,6 +224,40 @@ export default function Schedule() {
     setTimerSeconds(0);
 
     toast.success(`🎉 ${volumeTitle} marcado como completo! ${volumeReviews.length} revisões agendadas automaticamente.`);
+  };
+
+  const markTopicComplete = () => {
+    if (!selectedVolume || !selectedTopicId) {
+      toast.error("Selecione um volume e um tópico");
+      return;
+    }
+
+    const topic = topicsForVolume.find((t) => t.id === selectedTopicId);
+    if (!topic) return;
+
+    const isAlreadyCompleted = completedTopics.some(
+      (t) => t.topicId === selectedTopicId && t.volumeId === selectedVolumeId
+    );
+
+    if (isAlreadyCompleted) {
+      toast.error("Este tópico já foi marcado como concluído");
+      return;
+    }
+
+    const newCompletedTopic: CompletedTopic = {
+      id: `topic-${selectedVolumeId}-${selectedTopicId}-${Date.now()}`,
+      volumeId: selectedVolumeId,
+      topicId: selectedTopicId,
+      topicName: topic.name,
+      completionDate: new Date(),
+    };
+
+    setCompletedTopics([...completedTopics, newCompletedTopic]);
+    toast.success(`✓ Tópico "${topic.name}" marcado como concluído!`);
+  };
+
+  const isTopicCompleted = (volumeId: string, topicId: string) => {
+    return completedTopics.some((t) => t.volumeId === volumeId && t.topicId === topicId);
   };
 
   const pauseSession = () => {
@@ -245,286 +298,314 @@ export default function Schedule() {
   const overdueReviews = reviews.filter(
     (r) => !r.completed && new Date(r.scheduledDate) < new Date()
   ).length;
+  const totalTopicsCompleted = completedTopics.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Cronograma de Estudos</h1>
-          <p className="text-slate-600">Marque seu tempo de estudo e acompanhe as revisões agendadas automaticamente</p>
-        </div>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Cronograma de Estudos</h1>
+        <p className="text-muted-foreground mb-8">Acompanhe e marque as revisões agendadas automaticamente</p>
 
         {/* Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="p-4 bg-white border-slate-200">
+          <Card className="p-6 bg-white border-0 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Tempo Total de Estudo</p>
-                <p className="text-2xl font-bold text-slate-900">{Math.floor(totalStudyTime / 60)}h {totalStudyTime % 60}m</p>
+                <p className="text-sm text-muted-foreground mb-1">Revisões Concluídas</p>
+                <p className="text-3xl font-bold text-primary">{completedReviews}</p>
               </div>
-              <Clock className="w-8 h-8 text-blue-500" />
+              <CheckCircle2 size={32} className="text-green-500" />
             </div>
           </Card>
 
-          <Card className="p-4 bg-white border-slate-200">
+          <Card className="p-6 bg-white border-0 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Revisões Concluídas</p>
-                <p className="text-2xl font-bold text-green-600">{completedReviews}</p>
+                <p className="text-sm text-muted-foreground mb-1">Revisões Pendentes</p>
+                <p className="text-3xl font-bold text-yellow-600">{pendingReviews}</p>
               </div>
-              <CheckCircle2 className="w-8 h-8 text-green-500" />
+              <Clock size={32} className="text-yellow-500" />
             </div>
           </Card>
 
-          <Card className="p-4 bg-white border-slate-200">
+          <Card className="p-6 bg-white border-0 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Revisões Pendentes</p>
-                <p className="text-2xl font-bold text-orange-600">{pendingReviews}</p>
+                <p className="text-sm text-muted-foreground mb-1">Volumes Completos</p>
+                <p className="text-3xl font-bold text-blue-600">{completedVolumes.length}</p>
               </div>
-              <AlertCircle className="w-8 h-8 text-orange-500" />
+              <BookOpen size={32} className="text-blue-500" />
             </div>
           </Card>
 
-          <Card className="p-4 bg-white border-slate-200">
+          <Card className="p-6 bg-white border-0 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Volumes Completos</p>
-                <p className="text-2xl font-bold text-purple-600">{completedVolumes.length}</p>
+                <p className="text-sm text-muted-foreground mb-1">Tópicos Concluídos</p>
+                <p className="text-3xl font-bold text-purple-600">{totalTopicsCompleted}</p>
               </div>
-              <BookOpen className="w-8 h-8 text-purple-500" />
+              <Zap size={32} className="text-purple-500" />
             </div>
           </Card>
         </div>
 
         {/* Abas */}
         <Tabs defaultValue="timer" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-white border border-slate-200">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="timer">Timer</TabsTrigger>
             <TabsTrigger value="upcoming">Próximas</TabsTrigger>
             <TabsTrigger value="future">Futuras</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
           </TabsList>
 
-          {/* Timer */}
-          <TabsContent value="timer" className="mt-6">
-            <Card className="p-8 bg-white border-slate-200">
+          {/* Aba Timer */}
+          <TabsContent value="timer" className="space-y-6">
+            <Card className="p-8 bg-white">
+              <h2 className="text-2xl font-bold text-foreground mb-6">Tempo de Estudo</h2>
+              
               <div className="text-center mb-8">
-                <p className="text-slate-600 mb-4">Tempo de Estudo</p>
-                <div className="text-6xl font-bold text-blue-600 font-mono mb-8">
+                <div className="text-6xl font-bold text-primary font-mono mb-4">
                   {formatTime(timerSeconds)}
                 </div>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Volume</label>
-                    <Select value={selectedVolumeId} onValueChange={setSelectedVolumeId}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecione um volume" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {fmeVolumes.map((vol) => (
-                          <SelectItem key={vol.id} value={vol.id}>
-                            Volume {vol.number} - {vol.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="space-y-4 mb-8">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Volume</label>
+                  <Select value={selectedVolumeId} onValueChange={setSelectedVolumeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um volume" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fmeVolumes.map((volume) => (
+                        <SelectItem key={volume.id} value={volume.id}>
+                          Volume {volume.number} - {volume.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Tópico</label>
-                    <Select value={selectedTopicId} onValueChange={setSelectedTopicId} disabled={!selectedVolumeId}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecione um tópico" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {topicsForVolume.map((topic) => (
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Tópico</label>
+                  <Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um tópico" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {topicsForVolume.map((topic) => {
+                        const isCompleted = isTopicCompleted(selectedVolumeId, topic.id);
+                        return (
                           <SelectItem key={topic.id} value={topic.id}>
-                            {topic.name}
+                            {isCompleted ? "✓ " : ""}{topic.name}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
 
-                <div className="flex gap-4 justify-center flex-wrap">
-                  <Button
-                    onClick={startSession}
-                    disabled={timerActive}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Iniciar Estudo
-                  </Button>
-                  <Button
-                    onClick={pauseSession}
-                    disabled={!timerActive}
-                    variant="outline"
-                  >
-                    <Pause className="w-4 h-4 mr-2" />
-                    Pausar
-                  </Button>
-                  <Button
-                    onClick={resetTimer}
-                    variant="outline"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Reiniciar
-                  </Button>
-                  <Button
-                    onClick={endSession}
-                    disabled={timerSeconds === 0}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Finalizar Sessão
-                  </Button>
-                </div>
+              <div className="flex gap-3 mb-8">
+                <Button
+                  onClick={startSession}
+                  disabled={timerActive}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  <Play size={18} className="mr-2" />
+                  Iniciar Estudo
+                </Button>
+                <Button
+                  onClick={pauseSession}
+                  disabled={!timerActive}
+                  variant="outline"
+                >
+                  <Pause size={18} className="mr-2" />
+                  Pausar
+                </Button>
+                <Button onClick={resetTimer} variant="outline">
+                  <RotateCcw size={18} className="mr-2" />
+                  Reiniciar
+                </Button>
+              </div>
 
-                <div className="mt-8 pt-8 border-t border-slate-200">
-                  <p className="text-slate-600 mb-4">Marcar Volume como Completo</p>
-                  <p className="text-sm text-slate-500 mb-4">Ao marcar um volume como completo, 5 revisões serão agendadas automaticamente (1, 7, 14, 30 e 90 dias)</p>
-                  <Button
-                    onClick={completeVolume}
-                    disabled={!selectedVolumeId}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Marcar Volume como Completo
-                  </Button>
-                </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={endSession}
+                  disabled={timerSeconds === 0}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  <Check size={18} className="mr-2" />
+                  Finalizar Sessão
+                </Button>
+                <Button
+                  onClick={markTopicComplete}
+                  disabled={!selectedTopicId || isTopicCompleted(selectedVolumeId, selectedTopicId)}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                >
+                  <CheckCircle2 size={18} className="mr-2" />
+                  Marcar Tópico Completo
+                </Button>
+              </div>
+
+              <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-900">
+                  <strong>Dica:</strong> Ao marcar um tópico como completo, você pode acompanhar seu progresso. Ao finalizar uma sessão, 5 revisões serão agendadas automaticamente (1, 7, 14, 30 e 90 dias).
+                </p>
+              </div>
+
+              <div className="mt-8">
+                <h3 className="text-lg font-bold text-foreground mb-4">Marcar Volume como Completo</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Ao marcar um volume como completo, 5 revisões serão agendadas automaticamente (1, 7, 14, 30 e 90 dias)
+                </p>
+                <Button
+                  onClick={completeVolume}
+                  disabled={!selectedVolumeId}
+                  className="w-full bg-purple-600 hover:bg-purple-700"
+                >
+                  <Zap size={18} className="mr-2" />
+                  Marcar Volume como Completo
+                </Button>
               </div>
             </Card>
           </TabsContent>
 
-          {/* Próximas Revisões */}
-          <TabsContent value="upcoming" className="mt-6">
-            <Card className="p-6 bg-white border-slate-200">
+          {/* Aba Próximas */}
+          <TabsContent value="upcoming" className="space-y-4">
+            <div className="space-y-4">
               {overdueReviews > 0 && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-800 font-medium">⚠️ {overdueReviews} revisão(ões) vencida(s)</p>
-                </div>
+                <Card className="p-4 bg-red-50 border-red-200">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle size={24} className="text-red-600" />
+                    <div>
+                      <p className="font-semibold text-red-900">{overdueReviews} revisões vencidas!</p>
+                      <p className="text-sm text-red-700">Você tem revisões que deveriam ter sido feitas</p>
+                    </div>
+                  </div>
+                </Card>
               )}
 
-              {reviews.filter((r) => !r.completed && new Date(r.scheduledDate) <= new Date(Date.now() + 86400000)).length === 0 ? (
-                <p className="text-slate-500 text-center py-8">Nenhuma revisão próxima nos próximos 24 horas</p>
-              ) : (
-                <div className="space-y-4">
-                  {reviews
-                    .filter((r) => !r.completed && new Date(r.scheduledDate) <= new Date(Date.now() + 86400000))
-                    .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
-                    .map((review) => (
-                      <Card key={review.id} className="p-4 border-slate-200">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-semibold text-slate-900">{review.volume}</p>
-                            <p className="text-sm text-slate-600">{review.topic}</p>
-                            <p className="text-xs text-slate-500 mt-2">
-                              Revisão de {review.daysAfter} dias - {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => markReviewComplete(review.id)}
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              Concluir
-                            </Button>
-                            <Button
-                              onClick={() => deleteReview(review.id)}
-                              size="sm"
-                              variant="outline"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                </div>
+              {reviews
+                .filter((r) => !r.completed && new Date(r.scheduledDate) <= new Date())
+                .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+                .map((review) => (
+                  <Card key={review.id} className="p-4 bg-white border-l-4 border-l-red-500">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold text-foreground">{review.topic}</p>
+                        <p className="text-sm text-muted-foreground">{review.volume}</p>
+                        <p className="text-xs text-red-600 mt-2">
+                          ⚠️ Vencida em {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => markReviewComplete(review.id)}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Check size={16} />
+                        </Button>
+                        <Button
+                          onClick={() => deleteReview(review.id)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+
+              {reviews.filter((r) => !r.completed && new Date(r.scheduledDate) <= new Date()).length === 0 && (
+                <Card className="p-8 bg-green-50 border-green-200 text-center">
+                  <CheckCircle2 size={48} className="mx-auto text-green-600 mb-4" />
+                  <p className="text-green-900 font-semibold">Nenhuma revisão vencida!</p>
+                  <p className="text-sm text-green-700">Você está em dia com suas revisões</p>
+                </Card>
               )}
-            </Card>
+            </div>
           </TabsContent>
 
-          {/* Futuras Revisões */}
-          <TabsContent value="future" className="mt-6">
-            <Card className="p-6 bg-white border-slate-200">
-              {reviews.filter((r) => !r.completed && new Date(r.scheduledDate) > new Date(Date.now() + 86400000)).length === 0 ? (
-                <p className="text-slate-500 text-center py-8">Nenhuma revisão futura agendada</p>
-              ) : (
-                <div className="space-y-4">
-                  {reviews
-                    .filter((r) => !r.completed && new Date(r.scheduledDate) > new Date(Date.now() + 86400000))
-                    .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
-                    .map((review) => (
-                      <Card key={review.id} className="p-4 border-slate-200">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-semibold text-slate-900">{review.volume}</p>
-                            <p className="text-sm text-slate-600">{review.topic}</p>
-                            <p className="text-xs text-slate-500 mt-2">
-                              Revisão de {review.daysAfter} dias - {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => markReviewComplete(review.id)}
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              Concluir
-                            </Button>
-                            <Button
-                              onClick={() => deleteReview(review.id)}
-                              size="sm"
-                              variant="outline"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                </div>
-              )}
-            </Card>
+          {/* Aba Futuras */}
+          <TabsContent value="future" className="space-y-4">
+            {reviews
+              .filter((r) => !r.completed && new Date(r.scheduledDate) > new Date())
+              .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+              .map((review) => (
+                <Card key={review.id} className="p-4 bg-white border-l-4 border-l-blue-500">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground">{review.topic}</p>
+                      <p className="text-sm text-muted-foreground">{review.volume}</p>
+                      <p className="text-xs text-blue-600 mt-2">
+                        📅 Agendada para {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => markReviewComplete(review.id)}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Check size={16} />
+                      </Button>
+                      <Button
+                        onClick={() => deleteReview(review.id)}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+
+            {reviews.filter((r) => !r.completed && new Date(r.scheduledDate) > new Date()).length === 0 && (
+              <Card className="p-8 bg-blue-50 border-blue-200 text-center">
+                <Clock size={48} className="mx-auto text-blue-600 mb-4" />
+                <p className="text-blue-900 font-semibold">Nenhuma revisão futura agendada</p>
+                <p className="text-sm text-blue-700">Comece a estudar para agendar revisões</p>
+              </Card>
+            )}
           </TabsContent>
 
-          {/* Histórico */}
-          <TabsContent value="history" className="mt-6">
-            <Card className="p-6 bg-white border-slate-200">
-              {sessions.length === 0 ? (
-                <p className="text-slate-500 text-center py-8">Nenhuma sessão de estudo registrada</p>
-              ) : (
-                <div className="space-y-4">
-                  {sessions
-                    .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())
-                    .map((session) => (
-                      <Card key={session.id} className="p-4 border-slate-200">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-semibold text-slate-900">{session.volume}</p>
-                            <p className="text-sm text-slate-600">{session.topic}</p>
-                            <p className="text-xs text-slate-500 mt-2">
-                              {Math.floor(session.duration / 60)}h {session.duration % 60}m - {new Date(session.endTime).toLocaleDateString("pt-BR")}
-                            </p>
-                          </div>
-                          <Button
-                            onClick={() => deleteSession(session.id)}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
-                </div>
-              )}
-            </Card>
+          {/* Aba Histórico */}
+          <TabsContent value="history" className="space-y-4">
+            {reviews
+              .filter((r) => r.completed)
+              .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime())
+              .map((review) => (
+                <Card key={review.id} className="p-4 bg-white border-l-4 border-l-green-500">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground">{review.topic}</p>
+                      <p className="text-sm text-muted-foreground">{review.volume}</p>
+                      <p className="text-xs text-green-600 mt-2">
+                        ✓ Concluída em {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => deleteReview(review.id)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+
+            {reviews.filter((r) => r.completed).length === 0 && (
+              <Card className="p-8 bg-gray-50 border-gray-200 text-center">
+                <BookOpen size={48} className="mx-auto text-gray-600 mb-4" />
+                <p className="text-gray-900 font-semibold">Nenhuma revisão concluída</p>
+                <p className="text-sm text-gray-700">Comece a estudar e marque as revisões como concluídas</p>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
