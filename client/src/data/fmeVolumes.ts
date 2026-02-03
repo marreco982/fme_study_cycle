@@ -1,7 +1,12 @@
 export interface Topic {
   id: string;
   name: string;
-  description?: string;
+}
+
+export interface Chapter {
+  id: string;
+  name: string;
+  topics: Topic[];
 }
 
 export interface Volume {
@@ -10,6 +15,7 @@ export interface Volume {
   title: string;
   description: string;
   priority: "essential" | "important" | "complementary";
+  chapters: Chapter[];
   topics: Topic[];
 }
 
@@ -20,18 +26,126 @@ export const fmeVolumes: Volume[] = [
     title: "Conjuntos e Funções",
     description: "Fundamentos de conjuntos e funções reais",
     priority: "essential",
-    topics: [
-      { id: "vol1-1", name: "Conjuntos" },
-      { id: "vol1-2", name: "Operações com Conjuntos" },
-      { id: "vol1-3", name: "Relações" },
-      { id: "vol1-4", name: "Funções" },
-      { id: "vol1-5", name: "Tipos de Funções" },
-      { id: "vol1-6", name: "Função Composta" },
-      { id: "vol1-7", name: "Função Inversa" },
-      { id: "vol1-8", name: "Funções Polinomiais" },
-      { id: "vol1-9", name: "Funções Racionais" },
-      { id: "vol1-10", name: "Inequações" },
+    chapters: [
+      {
+        id: "vol1_cap1",
+        name: "CAPÍTULO I — Noções de lógica",
+        topics: [
+          { id: "vol1_cap1_t1", name: "Proposições" },
+          { id: "vol1_cap1_t2", name: "Operações lógicas" },
+          { id: "vol1_cap1_t3", name: "Tabelas-verdade" },
+        ],
+      },
+      {
+        id: "vol1_cap2",
+        name: "CAPÍTULO II — Conjuntos",
+        topics: [
+          { id: "vol1_cap2_t1", name: "Conceito de conjunto" },
+          { id: "vol1_cap2_t2", name: "Relação de pertinência" },
+          { id: "vol1_cap2_t3", name: "Igualdade de conjuntos" },
+          { id: "vol1_cap2_t4", name: "Subconjuntos" },
+          { id: "vol1_cap2_t5", name: "Operações com conjuntos" },
+        ],
+      },
+      {
+        id: "vol1_cap3",
+        name: "CAPÍTULO III — Conjuntos numéricos",
+        topics: [
+          { id: "vol1_cap3_t1", name: "Números naturais" },
+          { id: "vol1_cap3_t2", name: "Números inteiros" },
+          { id: "vol1_cap3_t3", name: "Números racionais" },
+          { id: "vol1_cap3_t4", name: "Números irracionais" },
+          { id: "vol1_cap3_t5", name: "Números reais" },
+          { id: "vol1_cap3_t6", name: "Intervalos" },
+        ],
+      },
+      {
+        id: "vol1_cap4",
+        name: "CAPÍTULO IV — Relações",
+        topics: [
+          { id: "vol1_cap4_t1", name: "Produto cartesiano" },
+          { id: "vol1_cap4_t2", name: "Relação binária" },
+          { id: "vol1_cap4_t3", name: "Domínio e imagem" },
+          { id: "vol1_cap4_t4", name: "Relação inversa" },
+        ],
+      },
+      {
+        id: "vol1_cap5",
+        name: "CAPÍTULO V — Introdução às funções",
+        topics: [
+          { id: "vol1_cap5_t1", name: "Conceito de função" },
+          { id: "vol1_cap5_t2", name: "Domínio, contradomínio e imagem" },
+          { id: "vol1_cap5_t3", name: "Função injetora, sobrejetora e bijetora" },
+          { id: "vol1_cap5_t4", name: "Gráfico de funções" },
+        ],
+      },
+      {
+        id: "vol1_cap6",
+        name: "CAPÍTULO VI — Função constante — Função afim",
+        topics: [
+          { id: "vol1_cap6_t1", name: "Função constante" },
+          { id: "vol1_cap6_t2", name: "Função afim" },
+          { id: "vol1_cap6_t3", name: "Gráfico da função afim" },
+          { id: "vol1_cap6_t4", name: "Raiz da função afim" },
+          { id: "vol1_cap6_t5", name: "Inequações do 1º grau" },
+        ],
+      },
+      {
+        id: "vol1_cap7",
+        name: "CAPÍTULO VII — Funções quadráticas",
+        topics: [
+          { id: "vol1_cap7_t1", name: "Função quadrática" },
+          { id: "vol1_cap7_t2", name: "Gráfico (parábola)" },
+          { id: "vol1_cap7_t3", name: "Raízes" },
+          { id: "vol1_cap7_t4", name: "Vértice" },
+          { id: "vol1_cap7_t5", name: "Inequações do 2º grau" },
+        ],
+      },
+      {
+        id: "vol1_cap8",
+        name: "CAPÍTULO VIII — Função modular",
+        topics: [
+          { id: "vol1_cap8_t1", name: "Módulo de um número real" },
+          { id: "vol1_cap8_t2", name: "Função modular" },
+          { id: "vol1_cap8_t3", name: "Gráfico da função modular" },
+          { id: "vol1_cap8_t4", name: "Equações modulares" },
+          { id: "vol1_cap8_t5", name: "Inequações modulares" },
+        ],
+      },
+      {
+        id: "vol1_cap9",
+        name: "CAPÍTULO IX — Outras funções elementares",
+        topics: [
+          { id: "vol1_cap9_t1", name: "Função potência" },
+          { id: "vol1_cap9_t2", name: "Função raiz" },
+          { id: "vol1_cap9_t3", name: "Função recíproca" },
+        ],
+      },
+      {
+        id: "vol1_cap10",
+        name: "CAPÍTULO X — Função composta — Função inversa",
+        topics: [
+          { id: "vol1_cap10_t1", name: "Composição de funções" },
+          { id: "vol1_cap10_t2", name: "Função inversa" },
+          { id: "vol1_cap10_t3", name: "Propriedades da função inversa" },
+        ],
+      },
+      {
+        id: "vol1_apen1",
+        name: "APÊNDICE I — Equações irracionais",
+        topics: [
+          { id: "vol1_apen1_t1", name: "Resolução de equações irracionais" },
+        ],
+      },
+      {
+        id: "vol1_apen2",
+        name: "APÊNDICE II — Inequações irracionais",
+        topics: [
+          { id: "vol1_apen2_t1", name: "Resolução de inequações irracionais" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol2",
@@ -39,18 +153,73 @@ export const fmeVolumes: Volume[] = [
     title: "Logaritmos",
     description: "Logaritmos e exponenciais",
     priority: "essential",
-    topics: [
-      { id: "vol2-1", name: "Potências e Raízes" },
-      { id: "vol2-2", name: "Função Exponencial" },
-      { id: "vol2-3", name: "Equações Exponenciais" },
-      { id: "vol2-4", name: "Logaritmos - Definição" },
-      { id: "vol2-5", name: "Propriedades dos Logaritmos" },
-      { id: "vol2-6", name: "Mudança de Base" },
-      { id: "vol2-7", name: "Função Logarítmica" },
-      { id: "vol2-8", name: "Equações Logarítmicas" },
-      { id: "vol2-9", name: "Inequações Exponenciais e Logarítmicas" },
-      { id: "vol2-10", name: "Aplicações de Logaritmos" },
+    chapters: [
+      {
+        id: "vol2_cap1",
+        name: "CAPÍTULO I — Potências e raízes",
+        topics: [
+          { id: "vol2_cap1_t1", name: "Potência de expoente natural" },
+          { id: "vol2_cap1_t2", name: "Potência de expoente inteiro" },
+          { id: "vol2_cap1_t3", name: "Raiz enésima" },
+          { id: "vol2_cap1_t4", name: "Potência de expoente racional" },
+        ],
+      },
+      {
+        id: "vol2_cap2",
+        name: "CAPÍTULO II — Função exponencial",
+        topics: [
+          { id: "vol2_cap2_t1", name: "Definição" },
+          { id: "vol2_cap2_t2", name: "Gráfico" },
+          { id: "vol2_cap2_t3", name: "Propriedades" },
+          { id: "vol2_cap2_t4", name: "Equações exponenciais" },
+        ],
+      },
+      {
+        id: "vol2_cap3",
+        name: "CAPÍTULO III — Logaritmos",
+        topics: [
+          { id: "vol2_cap3_t1", name: "Definição" },
+          { id: "vol2_cap3_t2", name: "Propriedades dos logaritmos" },
+          { id: "vol2_cap3_t3", name: "Logaritmo decimal" },
+          { id: "vol2_cap3_t4", name: "Logaritmo natural" },
+        ],
+      },
+      {
+        id: "vol2_cap4",
+        name: "CAPÍTULO IV — Função logarítmica",
+        topics: [
+          { id: "vol2_cap4_t1", name: "Definição" },
+          { id: "vol2_cap4_t2", name: "Gráfico" },
+          { id: "vol2_cap4_t3", name: "Propriedades" },
+          { id: "vol2_cap4_t4", name: "Relação com função exponencial" },
+        ],
+      },
+      {
+        id: "vol2_cap5",
+        name: "CAPÍTULO V — Equações exponenciais e logarítmicas",
+        topics: [
+          { id: "vol2_cap5_t1", name: "Resolução de equações exponenciais" },
+          { id: "vol2_cap5_t2", name: "Resolução de equações logarítmicas" },
+        ],
+      },
+      {
+        id: "vol2_cap6",
+        name: "CAPÍTULO VI — Inequações exponenciais e logarítmicas",
+        topics: [
+          { id: "vol2_cap6_t1", name: "Inequações exponenciais" },
+          { id: "vol2_cap6_t2", name: "Inequações logarítmicas" },
+        ],
+      },
+      {
+        id: "vol2_cap7",
+        name: "CAPÍTULO VII — Logaritmos decimais",
+        topics: [
+          { id: "vol2_cap7_t1", name: "Mantissa e característica" },
+          { id: "vol2_cap7_t2", name: "Aplicações" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol3",
@@ -58,37 +227,138 @@ export const fmeVolumes: Volume[] = [
     title: "Trigonometria",
     description: "Trigonometria no triângulo retângulo e círculo trigonométrico",
     priority: "essential",
-    topics: [
-      { id: "vol3-1", name: "Trigonometria no Triângulo Retângulo" },
-      { id: "vol3-2", name: "Razões Trigonométricas" },
-      { id: "vol3-3", name: "Ângulos Notáveis" },
-      { id: "vol3-4", name: "Círculo Trigonométrico" },
-      { id: "vol3-5", name: "Funções Trigonométricas" },
-      { id: "vol3-6", name: "Gráficos de Funções Trigonométricas" },
-      { id: "vol3-7", name: "Identidades Trigonométricas" },
-      { id: "vol3-8", name: "Equações Trigonométricas" },
-      { id: "vol3-9", name: "Inequações Trigonométricas" },
-      { id: "vol3-10", name: "Aplicações da Trigonometria" },
+    chapters: [
+      {
+        id: "vol3_cap1",
+        name: "Capítulo I - Arcos e Ângulos",
+        topics: [
+          { id: "vol3_cap1_t1", name: "Medida de arcos" },
+          { id: "vol3_cap1_t2", name: "Medida de ângulos" },
+          { id: "vol3_cap1_t3", name: "Conversão entre unidades" },
+        ],
+      },
+      {
+        id: "vol3_cap2",
+        name: "Capítulo II - Trigonometria no Triângulo Retângulo",
+        topics: [
+          { id: "vol3_cap2_t1", name: "Seno, cosseno e tangente" },
+          { id: "vol3_cap2_t2", name: "Relações trigonométricas" },
+          { id: "vol3_cap2_t3", name: "Ângulos notáveis" },
+        ],
+      },
+      {
+        id: "vol3_cap3",
+        name: "Capítulo III - Círculo Trigonométrico",
+        topics: [
+          { id: "vol3_cap3_t1", name: "Definição" },
+          { id: "vol3_cap3_t2", name: "Seno, cosseno e tangente no círculo" },
+          { id: "vol3_cap3_t3", name: "Funções trigonométricas" },
+        ],
+      },
+      {
+        id: "vol3_cap4",
+        name: "Capítulo IV - Funções Trigonométricas",
+        topics: [
+          { id: "vol3_cap4_t1", name: "Função seno" },
+          { id: "vol3_cap4_t2", name: "Função cosseno" },
+          { id: "vol3_cap4_t3", name: "Função tangente" },
+          { id: "vol3_cap4_t4", name: "Gráficos e propriedades" },
+        ],
+      },
+      {
+        id: "vol3_cap5",
+        name: "Capítulo V - Identidades Trigonométricas",
+        topics: [
+          { id: "vol3_cap5_t1", name: "Identidades fundamentais" },
+          { id: "vol3_cap5_t2", name: "Fórmulas de adição" },
+          { id: "vol3_cap5_t3", name: "Fórmulas de multiplicação" },
+        ],
+      },
+      {
+        id: "vol3_cap6",
+        name: "Capítulo VI - Equações Trigonométricas",
+        topics: [
+          { id: "vol3_cap6_t1", name: "Equações simples" },
+          { id: "vol3_cap6_t2", name: "Equações compostas" },
+        ],
+      },
+      {
+        id: "vol3_cap7",
+        name: "Capítulo VII - Inequações Trigonométricas",
+        topics: [
+          { id: "vol3_cap7_t1", name: "Resolução de inequações" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol4",
     number: 4,
     title: "Sequências",
     description: "Progressões aritmética e geométrica",
-    priority: "essential",
-    topics: [
-      { id: "vol4-1", name: "Sequências Numéricas" },
-      { id: "vol4-2", name: "Progressão Aritmética (PA)" },
-      { id: "vol4-3", name: "Termo Geral da PA" },
-      { id: "vol4-4", name: "Soma dos Termos da PA" },
-      { id: "vol4-5", name: "Progressão Geométrica (PG)" },
-      { id: "vol4-6", name: "Termo Geral da PG" },
-      { id: "vol4-7", name: "Soma dos Termos da PG" },
-      { id: "vol4-8", name: "Série Geométrica Infinita" },
-      { id: "vol4-9", name: "Aplicações de PA e PG" },
-      { id: "vol4-10", name: "Problemas com Sequências" },
+    priority: "important",
+    chapters: [
+      {
+        id: "vol4_cap1",
+        name: "Capítulo I - Sequências",
+        topics: [
+          { id: "vol4_cap1_t1", name: "Conceito de sequência" },
+          { id: "vol4_cap1_t2", name: "Sequências numéricas" },
+        ],
+      },
+      {
+        id: "vol4_cap2",
+        name: "Capítulo II - Progressão Aritmética (PA)",
+        topics: [
+          { id: "vol4_cap2_t1", name: "Definição" },
+          { id: "vol4_cap2_t2", name: "Termo geral" },
+          { id: "vol4_cap2_t3", name: "Soma dos termos" },
+          { id: "vol4_cap2_t4", name: "Propriedades" },
+        ],
+      },
+      {
+        id: "vol4_cap3",
+        name: "Capítulo III - Progressão Geométrica (PG)",
+        topics: [
+          { id: "vol4_cap3_t1", name: "Definição" },
+          { id: "vol4_cap3_t2", name: "Termo geral" },
+          { id: "vol4_cap3_t3", name: "Soma dos termos" },
+          { id: "vol4_cap3_t4", name: "Série geométrica" },
+        ],
+      },
+      {
+        id: "vol4_cap4",
+        name: "Capítulo IV - Matrizes",
+        topics: [
+          { id: "vol4_cap4_t1", name: "Conceito" },
+          { id: "vol4_cap4_t2", name: "Tipos de matrizes" },
+          { id: "vol4_cap4_t3", name: "Operações com matrizes" },
+          { id: "vol4_cap4_t4", name: "Matriz inversa" },
+        ],
+      },
+      {
+        id: "vol4_cap5",
+        name: "Capítulo V - Determinantes",
+        topics: [
+          { id: "vol4_cap5_t1", name: "Determinante de ordem 2" },
+          { id: "vol4_cap5_t2", name: "Determinante de ordem 3" },
+          { id: "vol4_cap5_t3", name: "Propriedades" },
+          { id: "vol4_cap5_t4", name: "Regra de Sarrus" },
+        ],
+      },
+      {
+        id: "vol4_cap6",
+        name: "Capítulo VI - Sistemas Lineares",
+        topics: [
+          { id: "vol4_cap6_t1", name: "Equação linear" },
+          { id: "vol4_cap6_t2", name: "Sistema de equações lineares" },
+          { id: "vol4_cap6_t3", name: "Resolução de sistemas" },
+          { id: "vol4_cap6_t4", name: "Regra de Cramer" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol5",
@@ -96,148 +366,451 @@ export const fmeVolumes: Volume[] = [
     title: "Combinatória",
     description: "Análise combinatória e contagem",
     priority: "important",
-    topics: [
-      { id: "vol5-1", name: "Princípio Fundamental da Contagem" },
-      { id: "vol5-2", name: "Fatorial" },
-      { id: "vol5-3", name: "Arranjos" },
-      { id: "vol5-4", name: "Permutações" },
-      { id: "vol5-5", name: "Combinações" },
-      { id: "vol5-6", name: "Binômio de Newton" },
-      { id: "vol5-7", name: "Triângulo de Pascal" },
-      { id: "vol5-8", name: "Permutações com Repetição" },
-      { id: "vol5-9", name: "Combinações com Repetição" },
-      { id: "vol5-10", name: "Problemas de Contagem" },
+    chapters: [
+      {
+        id: "vol5_cap1",
+        name: "Capítulo I - Princípio Fundamental da Contagem",
+        topics: [
+          { id: "vol5_cap1_t1", name: "Princípio multiplicativo" },
+          { id: "vol5_cap1_t2", name: "Princípio aditivo" },
+        ],
+      },
+      {
+        id: "vol5_cap2",
+        name: "Capítulo II - Fatorial",
+        topics: [
+          { id: "vol5_cap2_t1", name: "Definição" },
+          { id: "vol5_cap2_t2", name: "Propriedades" },
+        ],
+      },
+      {
+        id: "vol5_cap3",
+        name: "Capítulo III - Arranjos",
+        topics: [
+          { id: "vol5_cap3_t1", name: "Arranjo simples" },
+          { id: "vol5_cap3_t2", name: "Arranjo com repetição" },
+        ],
+      },
+      {
+        id: "vol5_cap4",
+        name: "Capítulo IV - Permutações",
+        topics: [
+          { id: "vol5_cap4_t1", name: "Permutação simples" },
+          { id: "vol5_cap4_t2", name: "Permutação com repetição" },
+          { id: "vol5_cap4_t3", name: "Permutação circular" },
+        ],
+      },
+      {
+        id: "vol5_cap5",
+        name: "Capítulo V - Combinações",
+        topics: [
+          { id: "vol5_cap5_t1", name: "Combinação simples" },
+          { id: "vol5_cap5_t2", name: "Combinação com repetição" },
+          { id: "vol5_cap5_t3", name: "Propriedades" },
+        ],
+      },
+      {
+        id: "vol5_cap6",
+        name: "Capítulo VI - Binômio de Newton",
+        topics: [
+          { id: "vol5_cap6_t1", name: "Desenvolvimento" },
+          { id: "vol5_cap6_t2", name: "Termo geral" },
+          { id: "vol5_cap6_t3", name: "Propriedades" },
+        ],
+      },
+      {
+        id: "vol5_cap7",
+        name: "Capítulo VII - Triângulo de Pascal",
+        topics: [
+          { id: "vol5_cap7_t1", name: "Construção" },
+          { id: "vol5_cap7_t2", name: "Propriedades" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol6",
     number: 6,
     title: "Probabilidade",
-    description: "Teoria da probabilidade e cálculo de probabilidades",
+    description: "Teoria da probabilidade",
     priority: "important",
-    topics: [
-      { id: "vol6-1", name: "Espaço Amostral" },
-      { id: "vol6-2", name: "Eventos" },
-      { id: "vol6-3", name: "Definição de Probabilidade" },
-      { id: "vol6-4", name: "Propriedades da Probabilidade" },
-      { id: "vol6-5", name: "Probabilidade Condicional" },
-      { id: "vol6-6", name: "Eventos Independentes" },
-      { id: "vol6-7", name: "Teorema da Multiplicação" },
-      { id: "vol6-8", name: "Teorema da Probabilidade Total" },
-      { id: "vol6-9", name: "Teorema de Bayes" },
-      { id: "vol6-10", name: "Aplicações de Probabilidade" },
+    chapters: [
+      {
+        id: "vol6_cap1",
+        name: "Capítulo I - Espaço Amostral e Evento",
+        topics: [
+          { id: "vol6_cap1_t1", name: "Conceitos básicos" },
+          { id: "vol6_cap1_t2", name: "Tipos de eventos" },
+        ],
+      },
+      {
+        id: "vol6_cap2",
+        name: "Capítulo II - Probabilidade",
+        topics: [
+          { id: "vol6_cap2_t1", name: "Definição clássica" },
+          { id: "vol6_cap2_t2", name: "Propriedades" },
+          { id: "vol6_cap2_t3", name: "Probabilidade condicional" },
+        ],
+      },
+      {
+        id: "vol6_cap3",
+        name: "Capítulo III - Eventos Independentes",
+        topics: [
+          { id: "vol6_cap3_t1", name: "Definição" },
+          { id: "vol6_cap3_t2", name: "Probabilidade de eventos independentes" },
+        ],
+      },
+      {
+        id: "vol6_cap4",
+        name: "Capítulo IV - Teorema de Bayes",
+        topics: [
+          { id: "vol6_cap4_t1", name: "Enunciado" },
+          { id: "vol6_cap4_t2", name: "Aplicações" },
+        ],
+      },
+      {
+        id: "vol6_cap5",
+        name: "Capítulo V - Distribuição de Probabilidade",
+        topics: [
+          { id: "vol6_cap5_t1", name: "Variável aleatória" },
+          { id: "vol6_cap5_t2", name: "Distribuição binomial" },
+          { id: "vol6_cap5_t3", name: "Distribuição normal" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol7",
     number: 7,
     title: "Estatística",
-    description: "Estatística descritiva e análise de dados",
+    description: "Estatística descritiva",
     priority: "important",
-    topics: [
-      { id: "vol7-1", name: "Conceitos Básicos de Estatística" },
-      { id: "vol7-2", name: "Coleta e Organização de Dados" },
-      { id: "vol7-3", name: "Distribuição de Frequências" },
-      { id: "vol7-4", name: "Gráficos Estatísticos" },
-      { id: "vol7-5", name: "Medidas de Tendência Central" },
-      { id: "vol7-6", name: "Medidas de Dispersão" },
-      { id: "vol7-7", name: "Variância e Desvio Padrão" },
-      { id: "vol7-8", name: "Correlação e Regressão" },
-      { id: "vol7-9", name: "Distribuição Normal" },
-      { id: "vol7-10", name: "Aplicações de Estatística" },
+    chapters: [
+      {
+        id: "vol7_cap1",
+        name: "Capítulo I - Conceitos Básicos",
+        topics: [
+          { id: "vol7_cap1_t1", name: "População e amostra" },
+          { id: "vol7_cap1_t2", name: "Variáveis estatísticas" },
+        ],
+      },
+      {
+        id: "vol7_cap2",
+        name: "Capítulo II - Organização de Dados",
+        topics: [
+          { id: "vol7_cap2_t1", name: "Tabelas de frequência" },
+          { id: "vol7_cap2_t2", name: "Gráficos" },
+        ],
+      },
+      {
+        id: "vol7_cap3",
+        name: "Capítulo III - Medidas de Posição",
+        topics: [
+          { id: "vol7_cap3_t1", name: "Média" },
+          { id: "vol7_cap3_t2", name: "Mediana" },
+          { id: "vol7_cap3_t3", name: "Moda" },
+          { id: "vol7_cap3_t4", name: "Quartis" },
+        ],
+      },
+      {
+        id: "vol7_cap4",
+        name: "Capítulo IV - Medidas de Dispersão",
+        topics: [
+          { id: "vol7_cap4_t1", name: "Amplitude" },
+          { id: "vol7_cap4_t2", name: "Variância" },
+          { id: "vol7_cap4_t3", name: "Desvio padrão" },
+          { id: "vol7_cap4_t4", name: "Coeficiente de variação" },
+        ],
+      },
+      {
+        id: "vol7_cap5",
+        name: "Capítulo V - Correlação e Regressão",
+        topics: [
+          { id: "vol7_cap5_t1", name: "Correlação linear" },
+          { id: "vol7_cap5_t2", name: "Regressão linear" },
+          { id: "vol7_cap5_t3", name: "Coeficiente de correlação" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol8",
     number: 8,
     title: "Limites",
-    description: "Limites de funções e continuidade",
+    description: "Limites e continuidade",
     priority: "complementary",
-    topics: [
-      { id: "vol8-1", name: "Conceito de Limite" },
-      { id: "vol8-2", name: "Limite de uma Função" },
-      { id: "vol8-3", name: "Propriedades dos Limites" },
-      { id: "vol8-4", name: "Limites Laterais" },
-      { id: "vol8-5", name: "Limites Infinitos" },
-      { id: "vol8-6", name: "Limites no Infinito" },
-      { id: "vol8-7", name: "Continuidade de Funções" },
-      { id: "vol8-8", name: "Teorema do Valor Intermediário" },
-      { id: "vol8-9", name: "Assíntotas" },
-      { id: "vol8-10", name: "Aplicações de Limites" },
+    chapters: [
+      {
+        id: "vol8_cap1",
+        name: "Capítulo I - Limite",
+        topics: [
+          { id: "vol8_cap1_t1", name: "Conceito intuitivo" },
+          { id: "vol8_cap1_t2", name: "Definição formal" },
+          { id: "vol8_cap1_t3", name: "Propriedades" },
+          { id: "vol8_cap1_t4", name: "Limites infinitos" },
+        ],
+      },
+      {
+        id: "vol8_cap2",
+        name: "Capítulo II - Continuidade",
+        topics: [
+          { id: "vol8_cap2_t1", name: "Definição" },
+          { id: "vol8_cap2_t2", name: "Propriedades" },
+        ],
+      },
+      {
+        id: "vol8_cap3",
+        name: "Capítulo III - Derivada",
+        topics: [
+          { id: "vol8_cap3_t1", name: "Conceito" },
+          { id: "vol8_cap3_t2", name: "Interpretação geométrica" },
+          { id: "vol8_cap3_t3", name: "Regras de derivação" },
+          { id: "vol8_cap3_t4", name: "Derivada de funções compostas" },
+        ],
+      },
+      {
+        id: "vol8_cap4",
+        name: "Capítulo IV - Aplicações da Derivada",
+        topics: [
+          { id: "vol8_cap4_t1", name: "Máximos e mínimos" },
+          { id: "vol8_cap4_t2", name: "Crescimento e decrescimento" },
+          { id: "vol8_cap4_t3", name: "Concavidade" },
+        ],
+      },
+      {
+        id: "vol8_cap5",
+        name: "Capítulo V - Integral",
+        topics: [
+          { id: "vol8_cap5_t1", name: "Conceito" },
+          { id: "vol8_cap5_t2", name: "Integral indefinida" },
+          { id: "vol8_cap5_t3", name: "Integral definida" },
+          { id: "vol8_cap5_t4", name: "Aplicações" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol9",
     number: 9,
-    title: "Derivadas",
-    description: "Derivadas e aplicações",
-    priority: "complementary",
-    topics: [
-      { id: "vol9-1", name: "Conceito de Derivada" },
-      { id: "vol9-2", name: "Derivada de uma Função" },
-      { id: "vol9-3", name: "Regras de Derivação" },
-      { id: "vol9-4", name: "Derivada da Função Composta" },
-      { id: "vol9-5", name: "Derivadas de Funções Elementares" },
-      { id: "vol9-6", name: "Derivadas Sucessivas" },
-      { id: "vol9-7", name: "Máximos e Mínimos" },
-      { id: "vol9-8", name: "Análise de Funções" },
-      { id: "vol9-9", name: "Aplicações de Derivadas" },
-      { id: "vol9-10", name: "Taxa de Variação" },
+    title: "Geometria Plana",
+    description: "Geometria plana",
+    priority: "essential",
+    chapters: [
+      {
+        id: "vol9_cap1",
+        name: "Capítulo I - Conceitos Fundamentais",
+        topics: [
+          { id: "vol9_cap1_t1", name: "Ponto, reta e plano" },
+          { id: "vol9_cap1_t2", name: "Ângulos" },
+        ],
+      },
+      {
+        id: "vol9_cap2",
+        name: "Capítulo II - Triângulos",
+        topics: [
+          { id: "vol9_cap2_t1", name: "Classificação" },
+          { id: "vol9_cap2_t2", name: "Congruência" },
+          { id: "vol9_cap2_t3", name: "Semelhança" },
+          { id: "vol9_cap2_t4", name: "Teorema de Pitágoras" },
+        ],
+      },
+      {
+        id: "vol9_cap3",
+        name: "Capítulo III - Quadriláteros",
+        topics: [
+          { id: "vol9_cap3_t1", name: "Classificação" },
+          { id: "vol9_cap3_t2", name: "Propriedades" },
+        ],
+      },
+      {
+        id: "vol9_cap4",
+        name: "Capítulo IV - Polígonos",
+        topics: [
+          { id: "vol9_cap4_t1", name: "Polígonos regulares" },
+          { id: "vol9_cap4_t2", name: "Ângulos internos e externos" },
+        ],
+      },
+      {
+        id: "vol9_cap5",
+        name: "Capítulo V - Circunferência",
+        topics: [
+          { id: "vol9_cap5_t1", name: "Elementos" },
+          { id: "vol9_cap5_t2", name: "Ângulos na circunferência" },
+          { id: "vol9_cap5_t3", name: "Potência de um ponto" },
+        ],
+      },
+      {
+        id: "vol9_cap6",
+        name: "Capítulo VI - Áreas",
+        topics: [
+          { id: "vol9_cap6_t1", name: "Área de triângulos" },
+          { id: "vol9_cap6_t2", name: "Área de quadriláteros" },
+          { id: "vol9_cap6_t3", name: "Área de polígonos" },
+          { id: "vol9_cap6_t4", name: "Área de círculo" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol10",
     number: 10,
-    title: "Integrais",
-    description: "Integrais e cálculo de áreas",
+    title: "Geometria Espacial",
+    description: "Geometria espacial",
     priority: "complementary",
-    topics: [
-      { id: "vol10-1", name: "Conceito de Integral" },
-      { id: "vol10-2", name: "Integral Indefinida" },
-      { id: "vol10-3", name: "Propriedades da Integral" },
-      { id: "vol10-4", name: "Técnicas de Integração" },
-      { id: "vol10-5", name: "Integração por Partes" },
-      { id: "vol10-6", name: "Integração por Substituição" },
-      { id: "vol10-7", name: "Integral Definida" },
-      { id: "vol10-8", name: "Teorema Fundamental do Cálculo" },
-      { id: "vol10-9", name: "Cálculo de Áreas" },
-      { id: "vol10-10", name: "Aplicações de Integrais" },
+    chapters: [
+      {
+        id: "vol10_cap1",
+        name: "Capítulo I - Conceitos Fundamentais",
+        topics: [
+          { id: "vol10_cap1_t1", name: "Posição relativa de retas e planos" },
+          { id: "vol10_cap1_t2", name: "Ângulos no espaço" },
+        ],
+      },
+      {
+        id: "vol10_cap2",
+        name: "Capítulo II - Poliedros",
+        topics: [
+          { id: "vol10_cap2_t1", name: "Definição" },
+          { id: "vol10_cap2_t2", name: "Poliedros regulares" },
+          { id: "vol10_cap2_t3", name: "Relação de Euler" },
+        ],
+      },
+      {
+        id: "vol10_cap3",
+        name: "Capítulo III - Prismas",
+        topics: [
+          { id: "vol10_cap3_t1", name: "Definição" },
+          { id: "vol10_cap3_t2", name: "Tipos" },
+          { id: "vol10_cap3_t3", name: "Área e volume" },
+        ],
+      },
+      {
+        id: "vol10_cap4",
+        name: "Capítulo IV - Pirâmides",
+        topics: [
+          { id: "vol10_cap4_t1", name: "Definição" },
+          { id: "vol10_cap4_t2", name: "Tipos" },
+          { id: "vol10_cap4_t3", name: "Área e volume" },
+        ],
+      },
+      {
+        id: "vol10_cap5",
+        name: "Capítulo V - Cilindros",
+        topics: [
+          { id: "vol10_cap5_t1", name: "Definição" },
+          { id: "vol10_cap5_t2", name: "Área e volume" },
+        ],
+      },
+      {
+        id: "vol10_cap6",
+        name: "Capítulo VI - Cones",
+        topics: [
+          { id: "vol10_cap6_t1", name: "Definição" },
+          { id: "vol10_cap6_t2", name: "Área e volume" },
+        ],
+      },
+      {
+        id: "vol10_cap7",
+        name: "Capítulo VII - Esferas",
+        topics: [
+          { id: "vol10_cap7_t1", name: "Definição" },
+          { id: "vol10_cap7_t2", name: "Área e volume" },
+        ],
+      },
     ],
+    topics: [],
   },
   {
     id: "vol11",
     number: 11,
     title: "Geometria",
-    description: "Geometria analítica e espacial",
-    priority: "important",
-    topics: [
-      { id: "vol11-1", name: "Geometria Analítica Plana" },
-      { id: "vol11-2", name: "Ponto e Reta" },
-      { id: "vol11-3", name: "Equação da Reta" },
-      { id: "vol11-4", name: "Circunferência" },
-      { id: "vol11-5", name: "Cônicas" },
-      { id: "vol11-6", name: "Elipse" },
-      { id: "vol11-7", name: "Hipérbole" },
-      { id: "vol11-8", name: "Parábola" },
-      { id: "vol11-9", name: "Geometria Espacial" },
-      { id: "vol11-10", name: "Sólidos Geométricos" },
+    description: "Matemática comercial, financeira e estatística",
+    priority: "complementary",
+    chapters: [
+      {
+        id: "vol11_cap1",
+        name: "Capítulo I - Razão e Proporção",
+        topics: [
+          { id: "vol11_cap1_t1", name: "Razão" },
+          { id: "vol11_cap1_t2", name: "Proporção" },
+          { id: "vol11_cap1_t3", name: "Propriedades" },
+        ],
+      },
+      {
+        id: "vol11_cap2",
+        name: "Capítulo II - Porcentagem",
+        topics: [
+          { id: "vol11_cap2_t1", name: "Conceito" },
+          { id: "vol11_cap2_t2", name: "Aplicações" },
+          { id: "vol11_cap2_t3", name: "Variação percentual" },
+        ],
+      },
+      {
+        id: "vol11_cap3",
+        name: "Capítulo III - Juros Simples",
+        topics: [
+          { id: "vol11_cap3_t1", name: "Conceito" },
+          { id: "vol11_cap3_t2", name: "Fórmulas" },
+          { id: "vol11_cap3_t3", name: "Aplicações" },
+        ],
+      },
+      {
+        id: "vol11_cap4",
+        name: "Capítulo IV - Juros Compostos",
+        topics: [
+          { id: "vol11_cap4_t1", name: "Conceito" },
+          { id: "vol11_cap4_t2", name: "Fórmulas" },
+          { id: "vol11_cap4_t3", name: "Aplicações" },
+        ],
+      },
+      {
+        id: "vol11_cap5",
+        name: "Capítulo V - Desconto",
+        topics: [
+          { id: "vol11_cap5_t1", name: "Desconto simples" },
+          { id: "vol11_cap5_t2", name: "Desconto composto" },
+        ],
+      },
+      {
+        id: "vol11_cap6",
+        name: "Capítulo VI - Anuidades",
+        topics: [
+          { id: "vol11_cap6_t1", name: "Conceito" },
+          { id: "vol11_cap6_t2", name: "Tipos" },
+          { id: "vol11_cap6_t3", name: "Cálculos" },
+        ],
+      },
+      {
+        id: "vol11_cap7",
+        name: "Capítulo VII - Estatística Descritiva",
+        topics: [
+          { id: "vol11_cap7_t1", name: "Conceitos básicos" },
+          { id: "vol11_cap7_t2", name: "Medidas de posição e dispersão" },
+          { id: "vol11_cap7_t3", name: "Gráficos" },
+        ],
+      },
     ],
+    topics: [],
   },
 ];
 
-export const getVolumeById = (id: string): Volume | undefined => {
-  return fmeVolumes.find((vol) => vol.id === id);
-};
+export function getTopicsByVolume(volumeId: string): Topic[] {
+  const volume = fmeVolumes.find((v) => v.id === volumeId);
+  if (!volume) return [];
 
-export const getTopicsByVolume = (volumeId: string): Topic[] => {
-  const volume = getVolumeById(volumeId);
-  return volume ? volume.topics : [];
-};
+  const allTopics: Topic[] = [];
+  volume.chapters.forEach((chapter) => {
+    allTopics.push(...chapter.topics);
+  });
+  return allTopics;
+}
 
-export const getAllTopics = (): { volumeNumber: number; volumeTitle: string; topics: Topic[] }[] => {
-  return fmeVolumes.map((vol) => ({
-    volumeNumber: vol.number,
-    volumeTitle: vol.title,
-    topics: vol.topics,
-  }));
-};
+export function getChaptersByVolume(volumeId: string): Chapter[] {
+  const volume = fmeVolumes.find((v) => v.id === volumeId);
+  return volume?.chapters || [];
+}
