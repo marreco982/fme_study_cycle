@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,18 +9,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Play, Pause, RotateCcw, Trash2, Clock, CheckCircle2, AlertCircle, BookOpen, Zap, Check } from "lucide-react";
+import { Play, Pause, RotateCcw, Trash2, Clock, CheckCircle2, AlertCircle, BookOpen, Zap, Check, Save, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { fmeVolumes, getTopicsByVolume, Topic } from "@/data/fmeVolumes";
 
 interface StudySession {
   id: string;
   volume: string;
+  volumeNumber: number;
+  chapter: string;
   topic: string;
   duration: number;
   startTime: Date;
   endTime: Date;
   completedReviews: number[];
+  isCompleted: boolean;
+}
+
+interface IncompleteSession {
+  id: string;
+  volume: string;
+  volumeNumber: number;
+  chapter: string;
+  topic: string;
+  duration: number;
+  startTime: Date;
+  pausedTime: number;
+  isPaused: boolean;
 }
 
 interface ScheduledReview {
@@ -54,7 +67,19 @@ interface CompletedTopic {
 export default function Schedule() {
   const [sessions, setSessions] = useState<StudySession[]>(() => {
     const saved = localStorage.getItem("studySessions");
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved).map((s: any) => ({
+      ...s,
+      startTime: new Date(s.startTime),
+      endTime: new Date(s.endTime),
+    })) : [];
+  });
+
+  const [incompleteSession, setIncompleteSession] = useState<IncompleteSession | null>(() => {
+    const saved = localStorage.getItem("incompleteSession");
+    return saved ? JSON.parse(saved).map((s: any) => ({
+      ...s,
+      startTime: new Date(s.startTime),
+    })) : null;
   });
 
   const [reviews, setReviews] = useState<ScheduledReview[]>(() => {
@@ -86,13 +111,35 @@ export default function Schedule() {
   });
 
   const [timerActive, setTimerActive] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [selectedVolumeId, setSelectedVolumeId] = useState("");
-  const [selectedTopicId, setSelectedTopicId] = useState("");
+  const [timerSeconds, setTimerSeconds] = useState(incompleteSession?.duration || 0);
+  const [selectedVolumeId, setSelectedVolumeId] = useState(incompleteSession?.volume || "");
+  const [selectedChapterId, setSelectedChapterId] = useState(incompleteSession?.chapter || "");
+  const [selectedTopicId, setSelectedTopicId] = useState(incompleteSession?.topic || "");
 
   const selectedVolume = fmeVolumes.find((v) => v.id === selectedVolumeId);
+  const selectedChapter = selectedVolume?.chapters.find((c) => c.id === selectedChapterId);
   const topicsForVolume = selectedVolumeId ? getTopicsByVolume(selectedVolumeId) : [];
+  const chaptersForVolume = selectedVolume?.chapters || [];
 
+  // Salvar sessões incompletas
+  useEffect(() => {
+    if (timerActive || timerSeconds > 0) {
+      const incompleteData: IncompleteSession = {
+        id: Date.now().toString(),
+        volume: selectedVolumeId,
+        volumeNumber: selectedVolume?.number || 0,
+        chapter: selectedChapterId,
+        topic: selectedTopicId,
+        duration: timerSeconds,
+        startTime: new Date(),
+        pausedTime: 0,
+        isPaused: !timerActive,
+      };
+      localStorage.setItem("incompleteSession", JSON.stringify(incompleteData));
+    }
+  }, [timerSeconds, timerActive, selectedVolumeId, selectedChapterId, selectedTopicId, selectedVolume]);
+
+  // Timer em tempo real
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (timerActive) {
@@ -126,6 +173,15 @@ export default function Schedule() {
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
+  const formatTimeShort = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m ${seconds % 60}s`;
+  };
+
   const startSession = () => {
     if (!selectedVolume || !selectedTopicId) {
       toast.error("Selecione um volume e um tópico");
@@ -136,6 +192,20 @@ export default function Schedule() {
     toast.success(`Sessão de estudo iniciada: ${topic?.name}`);
   };
 
+  const pauseSession = () => {
+    setTimerActive(false);
+    toast.info("Sessão pausada");
+  };
+
+  const resumeSession = () => {
+    if (!selectedVolume || !selectedTopicId) {
+      toast.error("Selecione um volume e um tópico");
+      return;
+    }
+    setTimerActive(true);
+    toast.success("Sessão retomada");
+  };
+
   const endSession = () => {
     if (timerSeconds === 0) {
       toast.error("Nenhum tempo de estudo registrado");
@@ -144,14 +214,19 @@ export default function Schedule() {
 
     const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
     const volumeTitle = `Volume ${selectedVolume!.number} - ${selectedVolume!.title}`;
+    const chapterName = selectedChapter?.name || "Capítulo desconhecido";
+    
     const newSession: StudySession = {
       id: Date.now().toString(),
       volume: volumeTitle,
+      volumeNumber: selectedVolume!.number,
+      chapter: chapterName,
       topic: topic?.name || "",
       duration: Math.ceil(timerSeconds / 60),
       startTime: new Date(Date.now() - timerSeconds * 1000),
       endTime: new Date(),
       completedReviews: [],
+      isCompleted: true,
     };
 
     setSessions([...sessions, newSession]);
@@ -165,7 +240,7 @@ export default function Schedule() {
       type: "content",
       volume: selectedVolume?.number,
       duration: newSession.duration,
-      notes: `${volumeTitle} - ${topic?.name || ""}`,
+      notes: `${volumeTitle} - ${chapterName} - ${topic?.name || ""}`,
     };
     localStorage.setItem("fmeStudyEvents", JSON.stringify([...calendarEvents, calendarEvent]));
 
@@ -202,11 +277,43 @@ export default function Schedule() {
     });
     localStorage.setItem("fmeStudyEvents", JSON.stringify(calendarEventsWithReviews));
 
+    // Limpar sessão incompleta
+    localStorage.removeItem("incompleteSession");
+    setIncompleteSession(null);
+
     setTimerActive(false);
     setTimerSeconds(0);
+    setSelectedVolumeId("");
+    setSelectedChapterId("");
     setSelectedTopicId("");
 
     toast.success(`Sessão salva! ${newReviews.length} revisões agendadas.`);
+  };
+
+  const saveIncompleteSession = () => {
+    if (timerSeconds === 0) {
+      toast.error("Nenhum tempo de estudo para salvar");
+      return;
+    }
+
+    if (!selectedVolume || !selectedTopicId) {
+      toast.error("Selecione um volume e um tópico");
+      return;
+    }
+
+    const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
+    toast.success(`Sessão salva: ${topic?.name} (${formatTimeShort(timerSeconds)})`);
+  };
+
+  const clearIncompleteSession = () => {
+    localStorage.removeItem("incompleteSession");
+    setIncompleteSession(null);
+    setTimerActive(false);
+    setTimerSeconds(0);
+    setSelectedVolumeId("");
+    setSelectedChapterId("");
+    setSelectedTopicId("");
+    toast.info("Sessão incompleta removida");
   };
 
   const completeReview = (reviewId: string) => {
@@ -258,6 +365,7 @@ export default function Schedule() {
     setReviews([...reviews, ...volumeReviews]);
 
     setSelectedVolumeId("");
+    setSelectedChapterId("");
     setSelectedTopicId("");
     setTimerSeconds(0);
 
@@ -298,15 +406,14 @@ export default function Schedule() {
     return completedTopics.some((t) => t.volumeId === volumeId && t.topicId === topicId);
   };
 
-  const pauseSession = () => {
-    setTimerActive(false);
-    toast.info("Sessão pausada");
-  };
-
   const resetTimer = () => {
     setTimerActive(false);
     setTimerSeconds(0);
+    setSelectedVolumeId("");
+    setSelectedChapterId("");
     setSelectedTopicId("");
+    localStorage.removeItem("incompleteSession");
+    setIncompleteSession(null);
     toast.info("Timer reiniciado");
   };
 
@@ -349,16 +456,26 @@ export default function Schedule() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-foreground mb-2">Cronograma de Estudos</h1>
-        <p className="text-muted-foreground mb-8">Acompanhe e marque as revisões agendadas automaticamente</p>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Cronômetro de Estudos</h1>
+        <p className="text-muted-foreground mb-8">Rastreie suas sessões de estudo em tempo real</p>
 
         {/* Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card className="p-6 bg-white border-0 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Revisões Concluídas</p>
-                <p className="text-3xl font-bold text-primary">{completedReviews}</p>
+                <p className="text-sm text-muted-foreground mb-1">Tempo Total Estudado</p>
+                <p className="text-3xl font-bold text-primary">{formatHours(totalStudyTime)}</p>
+              </div>
+              <Clock size={32} className="text-blue-500" />
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-white border-0 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Sessões Completas</p>
+                <p className="text-3xl font-bold text-green-600">{sessions.length}</p>
               </div>
               <CheckCircle2 size={32} className="text-green-500" />
             </div>
@@ -367,20 +484,10 @@ export default function Schedule() {
           <Card className="p-6 bg-white border-0 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Revisões Pendentes</p>
-                <p className="text-3xl font-bold text-yellow-600">{pendingReviews}</p>
+                <p className="text-sm text-muted-foreground mb-1">Revisões Concluídas</p>
+                <p className="text-3xl font-bold text-purple-600">{completedReviews}</p>
               </div>
-              <Clock size={32} className="text-yellow-500" />
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-white border-0 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Volumes Completos</p>
-                <p className="text-3xl font-bold text-blue-600">{completedVolumes.length}</p>
-              </div>
-              <BookOpen size={32} className="text-blue-500" />
+              <Zap size={32} className="text-purple-500" />
             </div>
           </Card>
 
@@ -388,9 +495,9 @@ export default function Schedule() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Tópicos Concluídos</p>
-                <p className="text-3xl font-bold text-purple-600">{totalTopicsCompleted}</p>
+                <p className="text-3xl font-bold text-orange-600">{totalTopicsCompleted}</p>
               </div>
-              <Zap size={32} className="text-purple-500" />
+              <BookOpen size={32} className="text-orange-500" />
             </div>
           </Card>
         </div>
@@ -398,27 +505,36 @@ export default function Schedule() {
         {/* Abas */}
         <Tabs defaultValue="timer" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="timer">Timer</TabsTrigger>
+            <TabsTrigger value="timer">Cronômetro</TabsTrigger>
             <TabsTrigger value="upcoming">Próximas</TabsTrigger>
             <TabsTrigger value="future">Futuras</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
           </TabsList>
 
-          {/* Aba Timer */}
+          {/* Aba Cronômetro */}
           <TabsContent value="timer" className="space-y-6">
-            <Card className="p-8 bg-white">
-              <h2 className="text-2xl font-bold text-foreground mb-6">Tempo de Estudo</h2>
+            <Card className="p-8 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <h2 className="text-2xl font-bold text-foreground mb-8">Cronômetro em Tempo Real</h2>
               
-              <div className="text-center mb-8">
-                <div className="text-6xl font-bold text-primary font-mono mb-4">
+              {/* Display do Cronômetro */}
+              <div className="text-center mb-8 p-8 bg-white rounded-lg shadow-sm border-2 border-blue-300">
+                <div className="text-7xl font-bold text-blue-600 font-mono mb-4">
                   {formatTime(timerSeconds)}
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  {timerActive ? "⏱️ Cronômetro em execução..." : "⏸️ Cronômetro pausado"}
+                </p>
               </div>
 
+              {/* Seleção de Volume, Capítulo e Tópico */}
               <div className="space-y-4 mb-8">
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 block">Volume</label>
-                  <Select value={selectedVolumeId} onValueChange={setSelectedVolumeId}>
+                  <Select value={selectedVolumeId} onValueChange={(value) => {
+                    setSelectedVolumeId(value);
+                    setSelectedChapterId("");
+                    setSelectedTopicId("");
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um volume" />
                     </SelectTrigger>
@@ -431,6 +547,27 @@ export default function Schedule() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {selectedVolume && (
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-2 block">Capítulo</label>
+                    <Select value={selectedChapterId} onValueChange={(value) => {
+                      setSelectedChapterId(value);
+                      setSelectedTopicId("");
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um capítulo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {chaptersForVolume.map((chapter) => (
+                          <SelectItem key={chapter.id} value={chapter.id}>
+                            {chapter.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 block">Tópico</label>
@@ -452,42 +589,67 @@ export default function Schedule() {
                 </div>
               </div>
 
+              {/* Controles do Cronômetro */}
               <div className="flex gap-3 mb-8">
                 <Button
                   onClick={startSession}
                   disabled={timerActive}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                 >
                   <Play size={18} className="mr-2" />
-                  Iniciar Estudo
+                  Iniciar
                 </Button>
                 <Button
                   onClick={pauseSession}
                   disabled={!timerActive}
                   variant="outline"
+                  className="flex-1"
                 >
                   <Pause size={18} className="mr-2" />
                   Pausar
                 </Button>
-                <Button onClick={resetTimer} variant="outline">
+                <Button
+                  onClick={resumeSession}
+                  disabled={timerActive || timerSeconds === 0}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <RotateCw size={18} className="mr-2" />
+                  Retomar
+                </Button>
+                <Button onClick={resetTimer} variant="outline" className="flex-1">
                   <RotateCcw size={18} className="mr-2" />
                   Reiniciar
                 </Button>
               </div>
 
-              <div className="flex gap-3">
+              {/* Botões de Ação */}
+              <div className="flex gap-3 mb-8">
                 <Button
                   onClick={endSession}
                   disabled={timerSeconds === 0}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Check size={18} className="mr-2" />
                   Finalizar Sessão
                 </Button>
                 <Button
+                  onClick={saveIncompleteSession}
+                  disabled={timerSeconds === 0}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Save size={18} className="mr-2" />
+                  Salvar Progresso
+                </Button>
+              </div>
+
+              {/* Botões Adicionais */}
+              <div className="flex gap-3">
+                <Button
                   onClick={markTopicComplete}
                   disabled={!selectedTopicId || isTopicCompleted(selectedVolumeId, selectedTopicId)}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
                 >
                   <CheckCircle2 size={18} className="mr-2" />
                   Marcar Tópico Completo
@@ -496,7 +658,7 @@ export default function Schedule() {
 
               <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-900">
-                  <strong>Dica:</strong> Ao marcar um tópico como completo, você pode acompanhar seu progresso. Ao finalizar uma sessão, 5 revisões serão agendadas automaticamente (1, 7, 14, 30 e 90 dias).
+                  <strong>💡 Dica:</strong> Seu progresso é salvo automaticamente. Você pode pausar a sessão e retomar depois. Ao finalizar uma sessão, 5 revisões serão agendadas automaticamente (1, 7, 14, 30 e 90 dias).
                 </p>
               </div>
 
@@ -508,7 +670,7 @@ export default function Schedule() {
                 <Button
                   onClick={completeVolume}
                   disabled={!selectedVolumeId}
-                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                 >
                   <Zap size={18} className="mr-2" />
                   Marcar Volume como Completo
@@ -621,37 +783,77 @@ export default function Schedule() {
 
           {/* Aba Histórico */}
           <TabsContent value="history" className="space-y-4">
-            {reviews
-              .filter((r) => r.completed)
-              .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime())
-              .map((review) => (
-                <Card key={review.id} className="p-4 bg-white border-l-4 border-l-green-500">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">{review.topic}</p>
-                      <p className="text-sm text-muted-foreground">{review.volume}</p>
-                      <p className="text-xs text-green-600 mt-2">
-                        ✓ Concluída em {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => deleteReview(review.id)}
-                      size="sm"
-                      variant="outline"
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+            <div className="space-y-4">
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-foreground mb-4">Sessões Completas</h3>
+                {sessions.length === 0 ? (
+                  <Card className="p-8 bg-gray-50 border-gray-200 text-center">
+                    <BookOpen size={48} className="mx-auto text-gray-600 mb-4" />
+                    <p className="text-gray-900 font-semibold">Nenhuma sessão completa</p>
+                    <p className="text-sm text-gray-700">Comece a estudar para registrar sessões</p>
+                  </Card>
+                ) : (
+                  sessions
+                    .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())
+                    .map((session) => (
+                      <Card key={session.id} className="p-4 bg-white border-l-4 border-l-green-500">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-semibold text-foreground">{session.topic}</p>
+                            <p className="text-sm text-muted-foreground">{session.volume}</p>
+                            <p className="text-xs text-gray-600 mt-1">📖 {session.chapter}</p>
+                            <p className="text-xs text-green-600 mt-2">
+                              ✓ {session.duration} minutos - {new Date(session.endTime).toLocaleDateString("pt-BR")} às {new Date(session.endTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                          <Button
+                            onClick={() => deleteSession(session.id)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </Card>
+                    ))
+                )}
+              </div>
 
-            {reviews.filter((r) => r.completed).length === 0 && (
-              <Card className="p-8 bg-gray-50 border-gray-200 text-center">
-                <BookOpen size={48} className="mx-auto text-gray-600 mb-4" />
-                <p className="text-gray-900 font-semibold">Nenhuma revisão concluída</p>
-                <p className="text-sm text-gray-700">Comece a estudar e marque as revisões como concluídas</p>
-              </Card>
-            )}
+              <div>
+                <h3 className="text-lg font-bold text-foreground mb-4">Revisões Concluídas</h3>
+                {reviews.filter((r) => r.completed).length === 0 ? (
+                  <Card className="p-8 bg-gray-50 border-gray-200 text-center">
+                    <BookOpen size={48} className="mx-auto text-gray-600 mb-4" />
+                    <p className="text-gray-900 font-semibold">Nenhuma revisão concluída</p>
+                    <p className="text-sm text-gray-700">Comece a estudar e marque as revisões como concluídas</p>
+                  </Card>
+                ) : (
+                  reviews
+                    .filter((r) => r.completed)
+                    .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime())
+                    .map((review) => (
+                      <Card key={review.id} className="p-4 bg-white border-l-4 border-l-green-500 mb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-semibold text-foreground">{review.topic}</p>
+                            <p className="text-sm text-muted-foreground">{review.volume}</p>
+                            <p className="text-xs text-green-600 mt-2">
+                              ✓ Concluída em {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
+                            </p>
+                          </div>
+                          <Button
+                            onClick={() => deleteReview(review.id)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </Card>
+                    ))
+                )}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
