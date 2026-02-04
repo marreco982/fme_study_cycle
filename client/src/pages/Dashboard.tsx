@@ -78,7 +78,7 @@ export default function Dashboard() {
 
   // Dados para gráfico de progresso por volume
   const progressByVolume = fmeVolumes.map((volume) => {
-    const totalTopics = volume.topics.length;
+    const totalTopics = volume.chapters.reduce((sum, ch) => sum + ch.topics.length, 0);
     const completedTopics = JSON.parse(localStorage.getItem("completedTopics") || "[]").filter(
       (t: any) => t.volumeId === volume.id
     ).length;
@@ -122,7 +122,7 @@ export default function Dashboard() {
     .length;
   const totalTopicsCompleted = JSON.parse(localStorage.getItem("completedTopics") || "[]")
     .length;
-  const totalTopics = fmeVolumes.reduce((acc, v) => acc + v.topics.length, 0);
+  const totalTopics = fmeVolumes.reduce((acc, v) => acc + v.chapters.reduce((sum, ch) => sum + ch.topics.length, 0), 0);
   const overallProgress = totalTopics > 0 ? Math.round((totalTopicsCompleted / totalTopics) * 100) : 0;
 
   const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];

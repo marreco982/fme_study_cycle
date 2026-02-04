@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Play, Pause, RotateCcw, Trash2, Clock, CheckCircle2, AlertCircle, BookOpen, Zap, Check } from "lucide-react";
 import { toast } from "sonner";
-import { fmeVolumes, getTopicsByVolume } from "@/data/fmeVolumes";
+import { fmeVolumes, getTopicsByVolume, Topic } from "@/data/fmeVolumes";
 
 interface StudySession {
   id: string;
@@ -131,7 +131,7 @@ export default function Schedule() {
       toast.error("Selecione um volume e um tópico");
       return;
     }
-    const topic = topicsForVolume.find((t) => t.id === selectedTopicId);
+    const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
     setTimerActive(true);
     toast.success(`Sessão de estudo iniciada: ${topic?.name}`);
   };
@@ -142,7 +142,7 @@ export default function Schedule() {
       return;
     }
 
-    const topic = topicsForVolume.find((t) => t.id === selectedTopicId);
+    const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
     const volumeTitle = `Volume ${selectedVolume!.number} - ${selectedVolume!.title}`;
     const newSession: StudySession = {
       id: Date.now().toString(),
@@ -232,7 +232,7 @@ export default function Schedule() {
       return;
     }
 
-    const topic = topicsForVolume.find((t) => t.id === selectedTopicId);
+    const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
     if (!topic) return;
 
     const isAlreadyCompleted = completedTopics.some(
@@ -274,7 +274,7 @@ export default function Schedule() {
 
   const deleteSession = (id: string) => {
     setSessions(sessions.filter((s) => s.id !== id));
-    setReviews(reviews.filter((r) => r.sessionId !== id));
+    setReviews(reviews.filter((r: ScheduledReview) => r.sessionId !== id));
     toast.success("Sessão removida");
   };
 
@@ -393,7 +393,7 @@ export default function Schedule() {
                       <SelectValue placeholder="Selecione um tópico" />
                     </SelectTrigger>
                     <SelectContent>
-                      {topicsForVolume.map((topic) => {
+                      {topicsForVolume.map((topic: Topic) => {
                         const isCompleted = isTopicCompleted(selectedVolumeId, topic.id);
                         return (
                           <SelectItem key={topic.id} value={topic.id}>
