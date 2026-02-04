@@ -156,6 +156,19 @@ export default function Schedule() {
 
     setSessions([...sessions, newSession]);
 
+    // Sincronizar com o calendário
+    const calendarEvents = JSON.parse(localStorage.getItem("fmeStudyEvents") || "[]");
+    const calendarEvent = {
+      id: newSession.id,
+      date: new Date().toISOString().split("T")[0],
+      title: `Estudo: ${topic?.name || "Tópico"}`,
+      type: "content",
+      volume: selectedVolume?.number,
+      duration: newSession.duration,
+      notes: `${volumeTitle} - ${topic?.name || ""}`,
+    };
+    localStorage.setItem("fmeStudyEvents", JSON.stringify([...calendarEvents, calendarEvent]));
+
     const reviewDays = [1, 7, 14, 30, 90];
     const newReviews = reviewDays.map((days) => {
       const scheduledDate = new Date();
@@ -172,6 +185,22 @@ export default function Schedule() {
     });
 
     setReviews([...reviews, ...newReviews]);
+
+    // Adicionar revisões ao calendário
+    const calendarEventsWithReviews = JSON.parse(localStorage.getItem("fmeStudyEvents") || "[]");
+    newReviews.forEach((review) => {
+      const reviewEvent = {
+        id: review.id,
+        date: review.scheduledDate.toISOString().split("T")[0],
+        title: `Revisão: ${review.topic}`,
+        type: "revision",
+        volume: selectedVolume?.number,
+        duration: 60,
+        notes: `${review.volume}`,
+      };
+      calendarEventsWithReviews.push(reviewEvent);
+    });
+    localStorage.setItem("fmeStudyEvents", JSON.stringify(calendarEventsWithReviews));
 
     setTimerActive(false);
     setTimerSeconds(0);
