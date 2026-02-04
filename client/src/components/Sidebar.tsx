@@ -1,4 +1,4 @@
-import { Home, BookOpen, Calendar, Clock, Menu, X, BarChart3 } from "lucide-react";
+import { Home, BookOpen, Calendar, Clock, Menu, X, BarChart3, Zap } from "lucide-react";
 import { useState } from "react";
 
 interface SidebarProps {
@@ -15,6 +15,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     { id: "calendar", label: "Calendário", icon: Calendar },
     { id: "schedule", label: "Cronograma", icon: Clock },
     { id: "dashboard", label: "Estatísticas", icon: BarChart3 },
+    { id: "study-planner", label: "Planejador", icon: Zap },
   ];
 
   const handleNavClick = (sectionId: string) => {
