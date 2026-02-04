@@ -209,6 +209,15 @@ export default function Schedule() {
     toast.success(`Sessão salva! ${newReviews.length} revisões agendadas.`);
   };
 
+  const completeReview = (reviewId: string) => {
+    setReviews(
+      reviews.map((r) =>
+        r.id === reviewId ? { ...r, completed: true } : r
+      )
+    );
+    toast.success("Revisão marcada como concluída!");
+  };
+
   const completeVolume = () => {
     if (!selectedVolume) {
       toast.error("Selecione um volume");
@@ -322,12 +331,20 @@ export default function Schedule() {
   };
 
   const totalStudyTime = sessions.reduce((acc, s) => acc + s.duration, 0);
+  const reviewTimeCompleted = reviews.filter((r) => r.completed).length * 60;
+  const totalTimeIncludingReviews = totalStudyTime + reviewTimeCompleted;
   const completedReviews = reviews.filter((r) => r.completed).length;
   const pendingReviews = reviews.filter((r) => !r.completed).length;
   const overdueReviews = reviews.filter(
     (r) => !r.completed && new Date(r.scheduledDate) < new Date()
   ).length;
   const totalTopicsCompleted = completedTopics.length;
+
+  const formatHours = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
