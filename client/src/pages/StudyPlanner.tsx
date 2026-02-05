@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, BookOpen, AlertCircle, CheckCircle2, TrendingUp, Zap, ArrowRight } from "lucide-react";
+import { Calendar, Clock, BookOpen, AlertCircle, CheckCircle2, TrendingUp, Zap, ArrowRight, Check } from "lucide-react";
 import { fmeVolumes } from "@/data/fmeVolumes";
 
 interface StudyLog {
@@ -29,6 +30,7 @@ interface ScheduledReview {
 }
 
 export default function StudyPlanner() {
+  const [, setLocation] = useLocation();
   // Carregar dados do Registrador
   const [studyLogs, setStudyLogs] = useState<StudyLog[]>(() => {
     const saved = localStorage.getItem("studyLogs");
@@ -271,10 +273,13 @@ export default function StudyPlanner() {
                     </div>
 
                     <div className="flex gap-4 mt-6">
-                      <Button className="flex-1 bg-blue-600 text-white hover:bg-blue-700">
-                        <ArrowRight className="mr-2" size={20} />
-                        Ir para Registrador
-                      </Button>
+                    <Button 
+                      onClick={() => setLocation("/schedule")}
+                      className="flex-1 bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 hover:shadow-lg"
+                    >
+                      <ArrowRight className="mr-2" size={20} />
+                      Ir para Registrador
+                    </Button>
                     </div>
                   </div>
 
@@ -381,9 +386,10 @@ export default function StudyPlanner() {
                         </div>
                         <Button
                           onClick={() => toggleReviewCompletion(review.id)}
-                          className="bg-red-600 text-white hover:bg-red-700"
+                          className="bg-red-600 text-white hover:bg-red-700 transition-all duration-200 hover:shadow-lg active:scale-95 flex items-center gap-2"
                         >
-                          Marcar como Concluída
+                          <Check size={18} />
+                          Concluir
                         </Button>
                       </div>
                     );

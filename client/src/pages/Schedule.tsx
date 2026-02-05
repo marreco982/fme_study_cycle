@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock, CheckCircle2, BookOpen, Trash2, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle2, BookOpen, Trash2, AlertCircle, Send, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { fmeVolumes } from "@/data/fmeVolumes";
 
@@ -452,9 +452,10 @@ export default function Schedule() {
                 <div className="flex gap-4 pt-4">
                   <Button
                     onClick={handleRegisterStudy}
-                    className="flex-1 bg-green-600 text-white hover:bg-green-700"
+                    className="flex-1 bg-green-600 text-white hover:bg-green-700 transition-all duration-200 hover:shadow-lg active:scale-95 flex items-center justify-center gap-2"
                   >
-                    REGISTRAR ESTUDO
+                    <Send size={18} />
+                    Registrar Estudo
                   </Button>
                   <Button
                     onClick={() => {
@@ -471,8 +472,10 @@ export default function Schedule() {
                       });
                     }}
                     variant="outline"
+                    className="transition-all duration-200 hover:shadow-md active:scale-95 flex items-center gap-2"
                   >
-                    CANCELAR
+                    <RotateCcw size={18} />
+                    Limpar
                   </Button>
                 </div>
               </div>
@@ -520,7 +523,8 @@ export default function Schedule() {
                         </div>
                         <button
                           onClick={() => deleteStudyLog(log.id)}
-                          className="text-red-500 hover:text-red-700 transition-colors"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded transition-all duration-200 hover:shadow-md active:scale-95"
+                          title="Deletar este registro"
                         >
                           <Trash2 size={20} />
                         </button>
@@ -574,17 +578,19 @@ export default function Schedule() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => toggleReviewCompletion(review.id)}
-                              className={`px-4 py-2 rounded transition-colors ${
+                              className={`px-4 py-2 rounded transition-all duration-200 hover:shadow-md active:scale-95 flex items-center gap-2 ${
                                 review.completed
                                   ? "bg-green-600 text-white"
                                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                               }`}
                             >
-                              {review.completed ? "✓ Concluída" : "Marcar"}
+                              <CheckCircle2 size={18} />
+                              {review.completed ? "Concluída" : "Marcar"}
                             </button>
                             <button
                               onClick={() => deleteReview(review.id)}
-                              className="text-red-500 hover:text-red-700 transition-colors"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded transition-all duration-200 hover:shadow-md active:scale-95"
+                              title="Deletar esta revisão"
                             >
                               <Trash2 size={20} />
                             </button>
