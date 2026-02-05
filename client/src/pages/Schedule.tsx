@@ -9,77 +9,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Play, Pause, RotateCcw, Trash2, Clock, CheckCircle2, AlertCircle, BookOpen, Zap, Check, Save, RotateCw } from "lucide-react";
+import { Clock, CheckCircle2, BookOpen, Trash2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { fmeVolumes, getTopicsByVolume, Topic } from "@/data/fmeVolumes";
+import { fmeVolumes } from "@/data/fmeVolumes";
 
-interface StudySession {
+interface StudyLog {
   id: string;
+  date: string;
+  hours: number;
+  minutes: number;
   volume: string;
   volumeNumber: number;
   chapter: string;
   topic: string;
-  duration: number;
-  startTime: Date;
-  endTime: Date;
-  completedReviews: number[];
-  isCompleted: boolean;
-}
-
-interface IncompleteSession {
-  id: string;
-  volume: string;
-  volumeNumber: number;
-  chapter: string;
-  topic: string;
-  duration: number;
-  startTime: Date;
-  pausedTime: number;
-  isPaused: boolean;
+  status: "continuing" | "completed" | "review";
+  generateReviews: boolean;
+  observations: string;
+  timestamp: Date;
 }
 
 interface ScheduledReview {
   id: string;
-  sessionId: string;
-  volume: string;
   topic: string;
   daysAfter: number;
   scheduledDate: Date;
   completed: boolean;
 }
 
-interface CompletedVolume {
-  id: string;
-  volumeId: string;
-  volumeTitle: string;
-  completionDate: Date;
-  reviews: ScheduledReview[];
-}
-
-interface CompletedTopic {
-  id: string;
-  volumeId: string;
-  topicId: string;
-  topicName: string;
-  completionDate: Date;
-}
-
 export default function Schedule() {
-  const [sessions, setSessions] = useState<StudySession[]>(() => {
-    const saved = localStorage.getItem("studySessions");
-    return saved ? JSON.parse(saved).map((s: any) => ({
-      ...s,
-      startTime: new Date(s.startTime),
-      endTime: new Date(s.endTime),
+  const [studyLogs, setStudyLogs] = useState<StudyLog[]>(() => {
+    const saved = localStorage.getItem("studyLogs");
+    return saved ? JSON.parse(saved).map((log: any) => ({
+      ...log,
+      timestamp: new Date(log.timestamp),
+      scheduledDate: log.scheduledDate ? new Date(log.scheduledDate) : null,
     })) : [];
-  });
-
-  const [incompleteSession, setIncompleteSession] = useState<IncompleteSession | null>(() => {
-    const saved = localStorage.getItem("incompleteSession");
-    return saved ? JSON.parse(saved).map((s: any) => ({
-      ...s,
-      startTime: new Date(s.startTime),
-    })) : null;
   });
 
   const [reviews, setReviews] = useState<ScheduledReview[]>(() => {
@@ -90,346 +54,137 @@ export default function Schedule() {
     })) : [];
   });
 
-  const [completedVolumes, setCompletedVolumes] = useState<CompletedVolume[]>(() => {
-    const saved = localStorage.getItem("completedVolumes");
-    return saved ? JSON.parse(saved).map((v: any) => ({
-      ...v,
-      completionDate: new Date(v.completionDate),
-      reviews: v.reviews.map((r: any) => ({
-        ...r,
-        scheduledDate: new Date(r.scheduledDate),
-      })),
-    })) : [];
+  // Formulário
+  const [formData, setFormData] = useState({
+    hours: "00",
+    minutes: "00",
+    date: new Date().toISOString().split("T")[0],
+    volume: "",
+    chapter: "",
+    topic: "",
+    status: "continuing" as "continuing" | "completed" | "review",
+    generateReviews: false,
+    observations: "",
   });
 
-  const [completedTopics, setCompletedTopics] = useState<CompletedTopic[]>(() => {
-    const saved = localStorage.getItem("completedTopics");
-    return saved ? JSON.parse(saved).map((t: any) => ({
-      ...t,
-      completionDate: new Date(t.completionDate),
-    })) : [];
-  });
+  const [selectedVolume, setSelectedVolume] = useState<typeof fmeVolumes[0] | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<typeof fmeVolumes[0]["chapters"][0] | null>(null);
 
-  const [timerActive, setTimerActive] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(incompleteSession?.duration || 0);
-  const [selectedVolumeId, setSelectedVolumeId] = useState(incompleteSession?.volume || "");
-  const [selectedChapterId, setSelectedChapterId] = useState(incompleteSession?.chapter || "");
-  const [selectedTopicId, setSelectedTopicId] = useState(incompleteSession?.topic || "");
-
-  const selectedVolume = fmeVolumes.find((v) => v.id === selectedVolumeId);
-  const selectedChapter = selectedVolume?.chapters.find((c) => c.id === selectedChapterId);
-  const topicsForVolume = selectedVolumeId ? getTopicsByVolume(selectedVolumeId) : [];
-  const chaptersForVolume = selectedVolume?.chapters || [];
-
-  // Salvar sessões incompletas
+  // Salvar study logs
   useEffect(() => {
-    if (timerActive || timerSeconds > 0) {
-      const incompleteData: IncompleteSession = {
-        id: Date.now().toString(),
-        volume: selectedVolumeId,
-        volumeNumber: selectedVolume?.number || 0,
-        chapter: selectedChapterId,
-        topic: selectedTopicId,
-        duration: timerSeconds,
-        startTime: new Date(),
-        pausedTime: 0,
-        isPaused: !timerActive,
-      };
-      localStorage.setItem("incompleteSession", JSON.stringify(incompleteData));
-    }
-  }, [timerSeconds, timerActive, selectedVolumeId, selectedChapterId, selectedTopicId, selectedVolume]);
+    localStorage.setItem("studyLogs", JSON.stringify(studyLogs));
+  }, [studyLogs]);
 
-  // Timer em tempo real
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (timerActive) {
-      interval = setInterval(() => {
-        setTimerSeconds((s) => s + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [timerActive]);
-
-  useEffect(() => {
-    localStorage.setItem("studySessions", JSON.stringify(sessions));
-  }, [sessions]);
-
+  // Salvar reviews
   useEffect(() => {
     localStorage.setItem("scheduledReviews", JSON.stringify(reviews));
   }, [reviews]);
 
+  // Atualizar volume selecionado
   useEffect(() => {
-    localStorage.setItem("completedVolumes", JSON.stringify(completedVolumes));
-  }, [completedVolumes]);
+    if (formData.volume) {
+      const vol = fmeVolumes.find((v) => v.id === formData.volume);
+      setSelectedVolume(vol || null);
+      setFormData((prev) => ({ ...prev, chapter: "", topic: "" }));
+      setSelectedChapter(null);
+    }
+  }, [formData.volume]);
 
+  // Atualizar capítulo selecionado
   useEffect(() => {
-    localStorage.setItem("completedTopics", JSON.stringify(completedTopics));
-  }, [completedTopics]);
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
-
-  const formatTimeShort = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+    if (formData.chapter && selectedVolume) {
+      const chap = selectedVolume.chapters.find((c) => c.id === formData.chapter);
+      setSelectedChapter(chap || null);
+      setFormData((prev) => ({ ...prev, topic: "" }));
     }
-    return `${minutes}m ${seconds % 60}s`;
-  };
+  }, [formData.chapter, selectedVolume]);
 
-  const startSession = () => {
-    if (!selectedVolume || !selectedTopicId) {
-      toast.error("Selecione um volume e um tópico");
-      return;
-    }
-    const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
-    setTimerActive(true);
-    toast.success(`Sessão de estudo iniciada: ${topic?.name}`);
-  };
-
-  const pauseSession = () => {
-    setTimerActive(false);
-    toast.info("Sessão pausada");
-  };
-
-  const resumeSession = () => {
-    if (!selectedVolume || !selectedTopicId) {
-      toast.error("Selecione um volume e um tópico");
-      return;
-    }
-    setTimerActive(true);
-    toast.success("Sessão retomada");
-  };
-
-  const endSession = () => {
-    if (timerSeconds === 0) {
-      toast.error("Nenhum tempo de estudo registrado");
+  const handleRegisterStudy = () => {
+    if (!formData.volume || !formData.chapter || !formData.topic) {
+      toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
-    const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
-    const volumeTitle = `Volume ${selectedVolume!.number} - ${selectedVolume!.title}`;
-    const chapterName = selectedChapter?.name || "Capítulo desconhecido";
-    
-    const newSession: StudySession = {
-      id: Date.now().toString(),
-      volume: volumeTitle,
-      volumeNumber: selectedVolume!.number,
-      chapter: chapterName,
-      topic: topic?.name || "",
-      duration: Math.ceil(timerSeconds / 60),
-      startTime: new Date(Date.now() - timerSeconds * 1000),
-      endTime: new Date(),
-      completedReviews: [],
-      isCompleted: true,
+    if (formData.hours === "00" && formData.minutes === "00") {
+      toast.error("Informe o tempo estudado");
+      return;
+    }
+
+    const volume = fmeVolumes.find((v) => v.id === formData.volume);
+    const chapter = volume?.chapters.find((c) => c.id === formData.chapter);
+    const topic = chapter?.topics.find((t) => t.id === formData.topic);
+
+    if (!volume || !chapter || !topic) {
+      toast.error("Dados inválidos selecionados");
+      return;
+    }
+
+    const newLog: StudyLog = {
+      id: `log_${Date.now()}`,
+      date: formData.date,
+      hours: parseInt(formData.hours),
+      minutes: parseInt(formData.minutes),
+      volume: volume.title,
+      volumeNumber: volume.number,
+      chapter: chapter.name,
+      topic: topic.name,
+      status: formData.status,
+      generateReviews: formData.generateReviews,
+      observations: formData.observations,
+      timestamp: new Date(),
     };
 
-    setSessions([...sessions, newSession]);
+    setStudyLogs([...studyLogs, newLog]);
 
-    // Sincronizar com o calendário
-    const calendarEvents = JSON.parse(localStorage.getItem("fmeStudyEvents") || "[]");
-    const calendarEvent = {
-      id: newSession.id,
+    // Se marcou como concluído e quer gerar revisões
+    if (formData.status === "completed" && formData.generateReviews) {
+      const reviewDays = [1, 7, 14, 30, 90];
+      const baseDate = new Date(formData.date);
+
+      const newReviews = reviewDays.map((days) => {
+        const reviewDate = new Date(baseDate);
+        reviewDate.setDate(reviewDate.getDate() + days);
+
+        return {
+          id: `review_${Date.now()}_${days}d`,
+          topic: `[REVISÃO] ${topic.name}`,
+          daysAfter: days,
+          scheduledDate: reviewDate,
+          completed: false,
+        };
+      });
+
+      setReviews([...reviews, ...newReviews]);
+      toast.success(`Estudo registrado! ${newReviews.length} revisões agendadas.`);
+    } else {
+      toast.success("Estudo registrado com sucesso!");
+    }
+
+    // Limpar formulário
+    setFormData({
+      hours: "00",
+      minutes: "00",
       date: new Date().toISOString().split("T")[0],
-      title: `Estudo: ${topic?.name || "Tópico"}`,
-      type: "content",
-      volume: selectedVolume?.number,
-      duration: newSession.duration,
-      notes: `${volumeTitle} - ${chapterName} - ${topic?.name || ""}`,
-    };
-    localStorage.setItem("fmeStudyEvents", JSON.stringify([...calendarEvents, calendarEvent]));
-
-    const reviewDays = [1, 7, 14, 30, 90];
-    const newReviews = reviewDays.map((days) => {
-      const scheduledDate = new Date();
-      scheduledDate.setDate(scheduledDate.getDate() + days);
-      return {
-        id: `${newSession.id}-${days}`,
-        sessionId: newSession.id,
-        volume: volumeTitle,
-        topic: topic?.name || "",
-        daysAfter: days,
-        scheduledDate,
-        completed: false,
-      };
+      volume: "",
+      chapter: "",
+      topic: "",
+      status: "continuing",
+      generateReviews: false,
+      observations: "",
     });
-
-    setReviews([...reviews, ...newReviews]);
-
-    // Adicionar revisões ao calendário
-    const calendarEventsWithReviews = JSON.parse(localStorage.getItem("fmeStudyEvents") || "[]");
-    newReviews.forEach((review) => {
-      const reviewEvent = {
-        id: review.id,
-        date: review.scheduledDate.toISOString().split("T")[0],
-        title: `Revisão: ${review.topic}`,
-        type: "revision",
-        volume: selectedVolume?.number,
-        duration: 60,
-        notes: `${review.volume}`,
-      };
-      calendarEventsWithReviews.push(reviewEvent);
-    });
-    localStorage.setItem("fmeStudyEvents", JSON.stringify(calendarEventsWithReviews));
-
-    // Limpar sessão incompleta
-    localStorage.removeItem("incompleteSession");
-    setIncompleteSession(null);
-
-    setTimerActive(false);
-    setTimerSeconds(0);
-    setSelectedVolumeId("");
-    setSelectedChapterId("");
-    setSelectedTopicId("");
-
-    toast.success(`Sessão salva! ${newReviews.length} revisões agendadas.`);
   };
 
-  const saveIncompleteSession = () => {
-    if (timerSeconds === 0) {
-      toast.error("Nenhum tempo de estudo para salvar");
-      return;
-    }
-
-    if (!selectedVolume || !selectedTopicId) {
-      toast.error("Selecione um volume e um tópico");
-      return;
-    }
-
-    const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
-    toast.success(`Sessão salva: ${topic?.name} (${formatTimeShort(timerSeconds)})`);
-  };
-
-  const clearIncompleteSession = () => {
-    localStorage.removeItem("incompleteSession");
-    setIncompleteSession(null);
-    setTimerActive(false);
-    setTimerSeconds(0);
-    setSelectedVolumeId("");
-    setSelectedChapterId("");
-    setSelectedTopicId("");
-    toast.info("Sessão incompleta removida");
-  };
-
-  const completeReview = (reviewId: string) => {
+  const toggleReviewCompletion = (reviewId: string) => {
     setReviews(
       reviews.map((r) =>
-        r.id === reviewId ? { ...r, completed: true } : r
+        r.id === reviewId ? { ...r, completed: !r.completed } : r
       )
     );
-    toast.success("Revisão marcada como concluída!");
   };
 
-  const completeVolume = () => {
-    if (!selectedVolume) {
-      toast.error("Selecione um volume");
-      return;
-    }
-
-    const volumeTitle = `Volume ${selectedVolume.number} - ${selectedVolume.title}`;
-    
-    if (completedVolumes.some((v) => v.volumeId === selectedVolumeId)) {
-      toast.error("Este volume já foi marcado como completo");
-      return;
-    }
-
-    const reviewDays = [1, 7, 14, 30, 90];
-    const volumeReviews = reviewDays.map((days) => {
-      const scheduledDate = new Date();
-      scheduledDate.setDate(scheduledDate.getDate() + days);
-      return {
-        id: `volume-${selectedVolumeId}-${days}`,
-        sessionId: `volume-${selectedVolumeId}`,
-        volume: volumeTitle,
-        topic: `Revisão Completa - ${selectedVolume.title}`,
-        daysAfter: days,
-        scheduledDate,
-        completed: false,
-      };
-    });
-
-    const newCompletedVolume: CompletedVolume = {
-      id: `completed-${selectedVolumeId}-${Date.now()}`,
-      volumeId: selectedVolumeId,
-      volumeTitle,
-      completionDate: new Date(),
-      reviews: volumeReviews,
-    };
-
-    setCompletedVolumes([...completedVolumes, newCompletedVolume]);
-    setReviews([...reviews, ...volumeReviews]);
-
-    setSelectedVolumeId("");
-    setSelectedChapterId("");
-    setSelectedTopicId("");
-    setTimerSeconds(0);
-
-    toast.success(`🎉 ${volumeTitle} marcado como completo! ${volumeReviews.length} revisões agendadas automaticamente.`);
-  };
-
-  const markTopicComplete = () => {
-    if (!selectedVolume || !selectedTopicId) {
-      toast.error("Selecione um volume e um tópico");
-      return;
-    }
-
-    const topic = topicsForVolume.find((t: Topic) => t.id === selectedTopicId);
-    if (!topic) return;
-
-    const isAlreadyCompleted = completedTopics.some(
-      (t) => t.topicId === selectedTopicId && t.volumeId === selectedVolumeId
-    );
-
-    if (isAlreadyCompleted) {
-      toast.error("Este tópico já foi marcado como concluído");
-      return;
-    }
-
-    const newCompletedTopic: CompletedTopic = {
-      id: `topic-${selectedVolumeId}-${selectedTopicId}-${Date.now()}`,
-      volumeId: selectedVolumeId,
-      topicId: selectedTopicId,
-      topicName: topic.name,
-      completionDate: new Date(),
-    };
-
-    setCompletedTopics([...completedTopics, newCompletedTopic]);
-    toast.success(`✓ Tópico "${topic.name}" marcado como concluído!`);
-  };
-
-  const isTopicCompleted = (volumeId: string, topicId: string) => {
-    return completedTopics.some((t) => t.volumeId === volumeId && t.topicId === topicId);
-  };
-
-  const resetTimer = () => {
-    setTimerActive(false);
-    setTimerSeconds(0);
-    setSelectedVolumeId("");
-    setSelectedChapterId("");
-    setSelectedTopicId("");
-    localStorage.removeItem("incompleteSession");
-    setIncompleteSession(null);
-    toast.info("Timer reiniciado");
-  };
-
-  const deleteSession = (id: string) => {
-    setSessions(sessions.filter((s) => s.id !== id));
-    setReviews(reviews.filter((r: ScheduledReview) => r.sessionId !== id));
-    toast.success("Sessão removida");
-  };
-
-  const markReviewComplete = (reviewId: string) => {
-    setReviews(
-      reviews.map((r) =>
-        r.id === reviewId ? { ...r, completed: true } : r
-      )
-    );
-    toast.success("Revisão marcada como concluída");
+  const deleteStudyLog = (id: string) => {
+    setStudyLogs(studyLogs.filter((log) => log.id !== id));
+    toast.success("Registro removido");
   };
 
   const deleteReview = (id: string) => {
@@ -437,135 +192,166 @@ export default function Schedule() {
     toast.success("Revisão removida");
   };
 
-  // Tempo de estudo (sem incluir revisões)
-  const totalStudyTime = sessions.reduce((acc, s) => acc + s.duration, 0);
-  
-  // Revisões são SEPARADAS do tempo de estudo
+  // Estatísticas
+  const totalMinutesStudied = studyLogs.reduce((acc, log) => acc + log.hours * 60 + log.minutes, 0);
+  const totalHoursStudied = Math.floor(totalMinutesStudied / 60);
+  const remainingMinutes = totalMinutesStudied % 60;
+  const completedStudies = studyLogs.filter((log) => log.status === "completed").length;
   const completedReviews = reviews.filter((r) => r.completed).length;
   const pendingReviews = reviews.filter((r) => !r.completed).length;
   const overdueReviews = reviews.filter(
     (r) => !r.completed && new Date(r.scheduledDate) < new Date()
   ).length;
-  const totalTopicsCompleted = completedTopics.length;
-  
-  // NÃO incluir tempo de revisões nas horas de estudo
-  // Revisões são obrigações adicionais fora das 2h/dia
-
-  const formatHours = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-foreground mb-2">Cronômetro de Estudos</h1>
-        <p className="text-muted-foreground mb-8">Rastreie suas sessões de estudo em tempo real</p>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Cronograma de Estudos</h1>
+        <p className="text-muted-foreground mb-8">Registre suas sessões de estudo e acompanhe seu progresso</p>
 
         {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="p-6 bg-white border-0 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Tempo de Estudo (2h/dia)</p>
-                <p className="text-3xl font-bold text-primary">{formatHours(totalStudyTime)}</p>
+                <p className="text-sm text-muted-foreground mb-1">Tempo Total</p>
+                <p className="text-3xl font-bold text-blue-600">
+                  {totalHoursStudied}h {remainingMinutes}m
+                </p>
               </div>
-              <Clock size={32} className="text-blue-500" />
+              <Clock className="text-blue-500" size={32} />
             </div>
           </Card>
 
-          <Card className="p-6 bg-white border-0 shadow-sm">
+          <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Sessões Completas</p>
-                <p className="text-3xl font-bold text-green-600">{sessions.length}</p>
+                <p className="text-sm text-muted-foreground mb-1">Teorias Concluídas</p>
+                <p className="text-3xl font-bold text-green-600">{completedStudies}</p>
               </div>
-              <CheckCircle2 size={32} className="text-green-500" />
+              <CheckCircle2 className="text-green-500" size={32} />
             </div>
           </Card>
 
-          <Card className="p-6 bg-white border-0 shadow-sm">
+          <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Revisões Concluídas</p>
-                <p className="text-3xl font-bold text-purple-600">{completedReviews}</p>
+                <p className="text-3xl font-bold text-purple-600">{completedReviews}/{reviews.length}</p>
               </div>
-              <Zap size={32} className="text-purple-500" />
+              <BookOpen className="text-purple-500" size={32} />
             </div>
           </Card>
 
-          <Card className="p-6 bg-white border-0 shadow-sm">
+          <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Tópicos Concluídos</p>
-                <p className="text-3xl font-bold text-orange-600">{totalTopicsCompleted}</p>
+                <p className="text-sm text-muted-foreground mb-1">Revisões Pendentes</p>
+                <p className="text-3xl font-bold text-orange-600">{pendingReviews}</p>
               </div>
-              <BookOpen size={32} className="text-orange-500" />
+              <AlertCircle className="text-orange-500" size={32} />
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-white shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Revisões Vencidas</p>
+                <p className="text-3xl font-bold text-red-600">{overdueReviews}</p>
+              </div>
+              <AlertCircle className="text-red-500" size={32} />
             </div>
           </Card>
         </div>
 
         {/* Abas */}
-        <Tabs defaultValue="timer" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="timer">Cronômetro</TabsTrigger>
-            <TabsTrigger value="upcoming">Próximas</TabsTrigger>
-            <TabsTrigger value="future">Futuras</TabsTrigger>
+        <Tabs defaultValue="register" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="register">Registrar Estudo</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
+            <TabsTrigger value="reviews">Revisões</TabsTrigger>
           </TabsList>
 
-          {/* Aba Cronômetro */}
-          <TabsContent value="timer" className="space-y-6">
-            <Card className="p-8 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-              <h2 className="text-2xl font-bold text-foreground mb-8">Cronômetro em Tempo Real</h2>
-              
-              {/* Display do Cronômetro */}
-              <div className="text-center mb-8 p-8 bg-white rounded-lg shadow-sm border-2 border-blue-300">
-                <div className="text-7xl font-bold text-blue-600 font-mono mb-4">
-                  {formatTime(timerSeconds)}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {timerActive ? "⏱️ Cronômetro em execução..." : "⏸️ Cronômetro pausado"}
-                </p>
-              </div>
+          {/* Aba: Registrar Estudo */}
+          <TabsContent value="register">
+            <Card className="p-8 bg-white shadow-sm">
+              <h2 className="text-2xl font-bold text-foreground mb-6">Registrar Estudo</h2>
 
-              {/* Seleção de Volume, Capítulo e Tópico */}
-              <div className="space-y-4 mb-8">
+              <div className="space-y-6">
+                {/* Tempo */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Horas</label>
+                    <Select value={formData.hours} onValueChange={(val) => setFormData({ ...formData, hours: val })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <SelectItem key={i} value={String(i).padStart(2, "0")}>
+                            {String(i).padStart(2, "0")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Minutos</label>
+                    <Select value={formData.minutes} onValueChange={(val) => setFormData({ ...formData, minutes: val })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 60 }, (_, i) => (
+                          <SelectItem key={i} value={String(i).padStart(2, "0")}>
+                            {String(i).padStart(2, "0")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Data</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full px-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* Disciplina */}
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">Volume</label>
-                  <Select value={selectedVolumeId} onValueChange={(value) => {
-                    setSelectedVolumeId(value);
-                    setSelectedChapterId("");
-                    setSelectedTopicId("");
-                  }}>
+                  <label className="block text-sm font-medium text-foreground mb-2">Disciplina</label>
+                  <Select value={formData.volume} onValueChange={(val) => setFormData({ ...formData, volume: val })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um volume" />
+                      <SelectValue placeholder="Selecione uma disciplina" />
                     </SelectTrigger>
                     <SelectContent>
-                      {fmeVolumes.map((volume) => (
-                        <SelectItem key={volume.id} value={volume.id}>
-                          Volume {volume.number} - {volume.title}
+                      {fmeVolumes.map((vol) => (
+                        <SelectItem key={vol.id} value={vol.id}>
+                          {vol.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
+                {/* Assunto */}
                 {selectedVolume && (
                   <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">Capítulo</label>
-                    <Select value={selectedChapterId} onValueChange={(value) => {
-                      setSelectedChapterId(value);
-                      setSelectedTopicId("");
-                    }}>
+                    <label className="block text-sm font-medium text-foreground mb-2">Assunto</label>
+                    <Select value={formData.chapter} onValueChange={(val) => setFormData({ ...formData, chapter: val })}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione um capítulo" />
+                        <SelectValue placeholder="Selecione um assunto" />
                       </SelectTrigger>
                       <SelectContent>
-                        {chaptersForVolume.map((chapter) => (
-                          <SelectItem key={chapter.id} value={chapter.id}>
-                            {chapter.name}
+                        {selectedVolume.chapters.map((chap) => (
+                          <SelectItem key={chap.id} value={chap.id}>
+                            {chap.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -573,291 +359,243 @@ export default function Schedule() {
                   </div>
                 )}
 
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">Tópico</label>
-                  <Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um tópico" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {topicsForVolume.map((topic: Topic) => {
-                        const isCompleted = isTopicCompleted(selectedVolumeId, topic.id);
-                        return (
-                          <SelectItem key={topic.id} value={topic.id}>
-                            {isCompleted ? "✓ " : ""}{topic.name}
+                {/* Tópico */}
+                {selectedChapter && (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Tópico</label>
+                    <Select value={formData.topic} onValueChange={(val) => setFormData({ ...formData, topic: val })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um tópico" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedChapter.topics.map((top) => (
+                          <SelectItem key={top.id} value={top.id}>
+                            {top.name}
                           </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Status */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-3">Status</label>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="status"
+                        value="continuing"
+                        checked={formData.status === "continuing"}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm font-medium text-foreground">
+                        Continuar estudando esse assunto
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Na sua próxima sessão de estudos dessa disciplina, mostraremos esse assunto novamente.
+                      </span>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="status"
+                        value="completed"
+                        checked={formData.status === "completed"}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm font-medium text-foreground">
+                        Finalizei toda a teoria desse assunto
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Não mostraremos até que você tenha finalizado todos os assuntos dessa disciplina. Marcaremos a teoria como finalizada no seu edital.
+                      </span>
+                    </label>
+                  </div>
                 </div>
-              </div>
 
-              {/* Controles do Cronômetro */}
-              <div className="flex gap-3 mb-8">
-                <Button
-                  onClick={startSession}
-                  disabled={timerActive}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Play size={18} className="mr-2" />
-                  Iniciar
-                </Button>
-                <Button
-                  onClick={pauseSession}
-                  disabled={!timerActive}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  <Pause size={18} className="mr-2" />
-                  Pausar
-                </Button>
-                <Button
-                  onClick={resumeSession}
-                  disabled={timerActive || timerSeconds === 0}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  <RotateCw size={18} className="mr-2" />
-                  Retomar
-                </Button>
-                <Button onClick={resetTimer} variant="outline" className="flex-1">
-                  <RotateCcw size={18} className="mr-2" />
-                  Reiniciar
-                </Button>
-              </div>
+                {/* Gerar Revisões */}
+                {formData.status === "completed" && (
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.generateReviews}
+                      onChange={(e) => setFormData({ ...formData, generateReviews: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-foreground">
+                      Gerar revisões automáticas
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      O sistema gerará lembretes de revisão para este assunto de acordo com os intervalos selecionados.
+                    </span>
+                  </label>
+                )}
 
-              {/* Botões de Ação */}
-              <div className="flex gap-3 mb-8">
-                <Button
-                  onClick={endSession}
-                  disabled={timerSeconds === 0}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Check size={18} className="mr-2" />
-                  Finalizar Sessão
-                </Button>
-                <Button
-                  onClick={saveIncompleteSession}
-                  disabled={timerSeconds === 0}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  <Save size={18} className="mr-2" />
-                  Salvar Progresso
-                </Button>
-              </div>
+                {/* Observações */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Observações</label>
+                  <textarea
+                    value={formData.observations}
+                    onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+                    placeholder="Adicione observações sobre esta sessão de estudo..."
+                    className="w-full px-4 py-3 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                    rows={4}
+                  />
+                </div>
 
-              {/* Botões Adicionais */}
-              <div className="flex gap-3">
-                <Button
-                  onClick={markTopicComplete}
-                  disabled={!selectedTopicId || isTopicCompleted(selectedVolumeId, selectedTopicId)}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  <CheckCircle2 size={18} className="mr-2" />
-                  Marcar Tópico Completo
-                </Button>
-              </div>
-
-              <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-900">
-                  <strong>💡 Dica:</strong> Seu progresso é salvo automaticamente. Você pode pausar a sessão e retomar depois. Ao finalizar uma sessão, 5 revisões serão agendadas automaticamente (1, 7, 14, 30 e 90 dias).
-                </p>
-              </div>
-
-              <div className="mt-8">
-                <h3 className="text-lg font-bold text-foreground mb-4">Marcar Volume como Completo</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Ao marcar um volume como completo, 5 revisões serão agendadas automaticamente (1, 7, 14, 30 e 90 dias)
-                </p>
-                <Button
-                  onClick={completeVolume}
-                  disabled={!selectedVolumeId}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  <Zap size={18} className="mr-2" />
-                  Marcar Volume como Completo
-                </Button>
+                {/* Botões */}
+                <div className="flex gap-4 pt-4">
+                  <Button
+                    onClick={handleRegisterStudy}
+                    className="flex-1 bg-green-600 text-white hover:bg-green-700"
+                  >
+                    REGISTRAR ESTUDO
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setFormData({
+                        hours: "00",
+                        minutes: "00",
+                        date: new Date().toISOString().split("T")[0],
+                        volume: "",
+                        chapter: "",
+                        topic: "",
+                        status: "continuing",
+                        generateReviews: false,
+                        observations: "",
+                      });
+                    }}
+                    variant="outline"
+                  >
+                    CANCELAR
+                  </Button>
+                </div>
               </div>
             </Card>
           </TabsContent>
 
-          {/* Aba Próximas */}
-          <TabsContent value="upcoming" className="space-y-4">
-            <div className="space-y-4">
-              {overdueReviews > 0 && (
-                <Card className="p-4 bg-red-50 border-red-200">
-                  <div className="flex items-center gap-3">
-                    <AlertCircle size={24} className="text-red-600" />
-                    <div>
-                      <p className="font-semibold text-red-900">{overdueReviews} revisões vencidas!</p>
-                      <p className="text-sm text-red-700">Você tem revisões que deveriam ter sido feitas</p>
-                    </div>
-                  </div>
-                </Card>
-              )}
+          {/* Aba: Histórico */}
+          <TabsContent value="history">
+            <Card className="p-6 bg-white shadow-sm">
+              <h2 className="text-2xl font-bold text-foreground mb-6">Histórico de Estudos</h2>
 
-              {reviews
-                .filter((r) => !r.completed && new Date(r.scheduledDate) <= new Date())
-                .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
-                .map((review) => (
-                  <Card key={review.id} className="p-4 bg-white border-l-4 border-l-red-500">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-semibold text-foreground">{review.topic}</p>
-                        <p className="text-sm text-muted-foreground">{review.volume}</p>
-                        <p className="text-xs text-red-600 mt-2">
-                          ⚠️ Vencida em {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => markReviewComplete(review.id)}
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
+              {studyLogs.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nenhum estudo registrado ainda</p>
+              ) : (
+                <div className="space-y-4">
+                  {studyLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="p-4 border border-border rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                              {log.date}
+                            </span>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                              log.status === "completed"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-700"
+                            }`}>
+                              {log.status === "completed" ? "Concluído" : "Continuando"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {log.hours}h {log.minutes}m
+                            </span>
+                          </div>
+                          <h3 className="font-semibold text-foreground">{log.topic}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {log.volume} • {log.chapter}
+                          </p>
+                          {log.observations && (
+                            <p className="text-sm text-muted-foreground mt-2 italic">"{log.observations}"</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => deleteStudyLog(log.id)}
+                          className="text-red-500 hover:text-red-700 transition-colors"
                         >
-                          <Check size={16} />
-                        </Button>
-                        <Button
-                          onClick={() => deleteReview(review.id)}
-                          size="sm"
-                          variant="outline"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
+                          <Trash2 size={20} />
+                        </button>
                       </div>
                     </div>
-                  </Card>
-                ))}
-
-              {reviews.filter((r) => !r.completed && new Date(r.scheduledDate) <= new Date()).length === 0 && (
-                <Card className="p-8 bg-green-50 border-green-200 text-center">
-                  <CheckCircle2 size={48} className="mx-auto text-green-600 mb-4" />
-                  <p className="text-green-900 font-semibold">Nenhuma revisão vencida!</p>
-                  <p className="text-sm text-green-700">Você está em dia com suas revisões</p>
-                </Card>
+                  ))}
+                </div>
               )}
-            </div>
+            </Card>
           </TabsContent>
 
-          {/* Aba Futuras */}
-          <TabsContent value="future" className="space-y-4">
-            {reviews
-              .filter((r) => !r.completed && new Date(r.scheduledDate) > new Date())
-              .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
-              .map((review) => (
-                <Card key={review.id} className="p-4 bg-white border-l-4 border-l-blue-500">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">{review.topic}</p>
-                      <p className="text-sm text-muted-foreground">{review.volume}</p>
-                      <p className="text-xs text-blue-600 mt-2">
-                        📅 Agendada para {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => markReviewComplete(review.id)}
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Check size={16} />
-                      </Button>
-                      <Button
-                        onClick={() => deleteReview(review.id)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+          {/* Aba: Revisões */}
+          <TabsContent value="reviews">
+            <Card className="p-6 bg-white shadow-sm">
+              <h2 className="text-2xl font-bold text-foreground mb-6">Revisões Agendadas</h2>
 
-            {reviews.filter((r) => !r.completed && new Date(r.scheduledDate) > new Date()).length === 0 && (
-              <Card className="p-8 bg-blue-50 border-blue-200 text-center">
-                <Clock size={48} className="mx-auto text-blue-600 mb-4" />
-                <p className="text-blue-900 font-semibold">Nenhuma revisão futura agendada</p>
-                <p className="text-sm text-blue-700">Comece a estudar para agendar revisões</p>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Aba Histórico */}
-          <TabsContent value="history" className="space-y-4">
-            <div className="space-y-4">
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-foreground mb-4">Sessões Completas</h3>
-                {sessions.length === 0 ? (
-                  <Card className="p-8 bg-gray-50 border-gray-200 text-center">
-                    <BookOpen size={48} className="mx-auto text-gray-600 mb-4" />
-                    <p className="text-gray-900 font-semibold">Nenhuma sessão completa</p>
-                    <p className="text-sm text-gray-700">Comece a estudar para registrar sessões</p>
-                  </Card>
-                ) : (
-                  sessions
-                    .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())
-                    .map((session) => (
-                      <Card key={session.id} className="p-4 bg-white border-l-4 border-l-green-500">
+              {reviews.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nenhuma revisão agendada</p>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => {
+                    const isOverdue = new Date(review.scheduledDate) < new Date() && !review.completed;
+                    return (
+                      <div
+                        key={review.id}
+                        className={`p-4 border-2 rounded-lg transition-colors ${
+                          review.completed
+                            ? "bg-green-50 border-green-200"
+                            : isOverdue
+                            ? "bg-red-50 border-red-200"
+                            : "bg-yellow-50 border-yellow-200"
+                        }`}
+                      >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <p className="font-semibold text-foreground">{session.topic}</p>
-                            <p className="text-sm text-muted-foreground">{session.volume}</p>
-                            <p className="text-xs text-gray-600 mt-1">📖 {session.chapter}</p>
-                            <p className="text-xs text-green-600 mt-2">
-                              ✓ {session.duration} minutos - {new Date(session.endTime).toLocaleDateString("pt-BR")} às {new Date(session.endTime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                            </p>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
+                              </span>
+                              <span className="text-xs font-semibold px-2 py-1 bg-purple-100 text-purple-700 rounded">
+                                {review.daysAfter}d
+                              </span>
+                              {isOverdue && (
+                                <span className="text-xs font-semibold px-2 py-1 bg-red-100 text-red-700 rounded">
+                                  VENCIDA
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-foreground">{review.topic}</h3>
                           </div>
-                          <Button
-                            onClick={() => deleteSession(session.id)}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      </Card>
-                    ))
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-lg font-bold text-foreground mb-4">Revisões Concluídas</h3>
-                {reviews.filter((r) => r.completed).length === 0 ? (
-                  <Card className="p-8 bg-gray-50 border-gray-200 text-center">
-                    <BookOpen size={48} className="mx-auto text-gray-600 mb-4" />
-                    <p className="text-gray-900 font-semibold">Nenhuma revisão concluída</p>
-                    <p className="text-sm text-gray-700">Comece a estudar e marque as revisões como concluídas</p>
-                  </Card>
-                ) : (
-                  reviews
-                    .filter((r) => r.completed)
-                    .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime())
-                    .map((review) => (
-                      <Card key={review.id} className="p-4 bg-white border-l-4 border-l-green-500 mb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-semibold text-foreground">{review.topic}</p>
-                            <p className="text-sm text-muted-foreground">{review.volume}</p>
-                            <p className="text-xs text-green-600 mt-2">
-                              ✓ Concluída em {new Date(review.scheduledDate).toLocaleDateString("pt-BR")}
-                            </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleReviewCompletion(review.id)}
+                              className={`px-4 py-2 rounded transition-colors ${
+                                review.completed
+                                  ? "bg-green-600 text-white"
+                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                            >
+                              {review.completed ? "✓ Concluída" : "Marcar"}
+                            </button>
+                            <button
+                              onClick={() => deleteReview(review.id)}
+                              className="text-red-500 hover:text-red-700 transition-colors"
+                            >
+                              <Trash2 size={20} />
+                            </button>
                           </div>
-                          <Button
-                            onClick={() => deleteReview(review.id)}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
                         </div>
-                      </Card>
-                    ))
-                )}
-              </div>
-            </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
