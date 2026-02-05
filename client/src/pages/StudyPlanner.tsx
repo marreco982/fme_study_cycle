@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { fmeVolumes } from "@/data/fmeVolumes";
 import { useState, useMemo, useEffect } from "react";
@@ -16,10 +15,8 @@ interface ScheduleItem {
   reviewDay?: number;
   completed?: boolean;
   originalStudyDate?: Date;
+  isCarryover?: boolean;
 }
-
-const DAILY_STUDY_HOURS = 2;
-const DAILY_STUDY_MINUTES = DAILY_STUDY_HOURS * 60;
 
 export default function StudyPlanner() {
   const [startDate, setStartDate] = useState<string>(
@@ -56,95 +53,60 @@ export default function StudyPlanner() {
     localStorage.setItem("expandedVolumesSchedule", JSON.stringify(Array.from(expandedVolumes)));
   }, [expandedVolumes]);
 
-  // Calcular cronograma com ajuste para tópicos concluídos
+  // Calcular cronograma diário flexível
   const schedule = useMemo(() => {
     const items: ScheduleItem[] = [];
     let currentDate = new Date(startDate);
-    let minutesRemaining = 0;
+    let currentTopicIndex = 0;
+    const topicsToStudy: Array<{
+      volume: typeof fmeVolumes[0];
+      chapter: typeof fmeVolumes[0]["chapters"][0];
+      topic: typeof fmeVolumes[0]["chapters"][0]["topics"][0];
+    }> = [];
 
-    // Filtrar volumes
+    // Filtrar volumes e coletar todos os tópicos
     const volumesToStudy = fmeVolumes.filter((vol) => {
       if (includeComplementary) return true;
       return vol.priority !== "complementary";
     });
 
-    // Gerar cronograma de estudo
     volumesToStudy.forEach((volume) => {
       volume.chapters.forEach((chapter) => {
         chapter.topics.forEach((topic) => {
-          const duration = topic.durationMinutes || 60;
-          const topicId = `${volume.id}_${chapter.id}_${topic.id}`;
-          const isCompleted = completedTopics.has(topicId);
-
-          if (minutesRemaining === 0) {
-            minutesRemaining = DAILY_STUDY_MINUTES;
-            currentDate = new Date(currentDate);
-            currentDate.setDate(currentDate.getDate() + 1);
-          }
-
-          const studyDate = new Date(currentDate);
-
-          if (duration <= minutesRemaining) {
-            items.push({
-              id: `study_${topicId}`,
-              date: studyDate,
-              volume: volume.number,
-              volumeTitle: volume.title,
-              chapter: chapter.name,
-              topic: topic.name,
-              duration,
-              type: "study",
-              completed: isCompleted,
-              originalStudyDate: studyDate,
-            });
-            minutesRemaining -= duration;
-          } else {
-            // Tópico que não cabe no dia
-            items.push({
-              id: `study_${topicId}_part1`,
-              date: studyDate,
-              volume: volume.number,
-              volumeTitle: volume.title,
-              chapter: chapter.name,
-              topic: topic.name,
-              duration: minutesRemaining,
-              type: "study",
-              completed: isCompleted,
-              originalStudyDate: studyDate,
-            });
-
-            // Resto do tópico no próximo dia
-            const remaining = duration - minutesRemaining;
-            currentDate.setDate(currentDate.getDate() + 1);
-            items.push({
-              id: `study_${topicId}_part2`,
-              date: new Date(currentDate),
-              volume: volume.number,
-              volumeTitle: volume.title,
-              chapter: chapter.name,
-              topic: topic.name + " (continuação)",
-              duration: remaining,
-              type: "study",
-              completed: isCompleted,
-              originalStudyDate: studyDate,
-            });
-            minutesRemaining = DAILY_STUDY_MINUTES - remaining;
-          }
+          topicsToStudy.push({ volume, chapter, topic });
         });
       });
     });
 
-    // Adicionar revisões espaçadas baseadas na data de conclusão
-    const reviewDays = [1, 7, 14, 30, 90];
-    const studyItems = items.filter((item) => item.type === "study");
-
-    studyItems.forEach((studyItem) => {
-      const topicId = studyItem.id.replace("study_", "").split("_part")[0];
+    // Gerar cronograma diário: um tópico por dia (ou carryover se não concluído)
+    // Limitar a 365 dias para evitar loop infinito
+    let dayCount = 0;
+    const MAX_DAYS = 365;
+    
+    while (currentTopicIndex < topicsToStudy.length && dayCount < MAX_DAYS) {
+      const { volume, chapter, topic } = topicsToStudy[currentTopicIndex];
+      const duration = topic.durationMinutes || 60;
+      const topicId = `${volume.id}_${chapter.id}_${topic.id}`;
       const isCompleted = completedTopics.has(topicId);
 
+      // Adicionar tópico para o dia atual
+      items.push({
+        id: `study_${topicId}_${currentDate.toISOString().split("T")[0]}`,
+        date: new Date(currentDate),
+        volume: volume.number,
+        volumeTitle: volume.title,
+        chapter: chapter.name,
+        topic: topic.name,
+        duration,
+        type: "study",
+        completed: isCompleted,
+        originalStudyDate: new Date(currentDate),
+      });
+
+      // Se o tópico foi concluído, agendar revisões e ir para o próximo
       if (isCompleted) {
-        // Se o tópico foi concluído, usar a data de conclusão como base
-        const completionDate = new Date(studyItem.originalStudyDate!);
+        const reviewDays = [1, 7, 14, 30, 90];
+        const completionDate = new Date(currentDate);
 
         reviewDays.forEach((reviewDay) => {
           const reviewDate = new Date(completionDate);
@@ -153,23 +115,47 @@ export default function StudyPlanner() {
           items.push({
             id: `review_${topicId}_${reviewDay}d`,
             date: reviewDate,
-            volume: studyItem.volume,
-            volumeTitle: studyItem.volumeTitle,
-            chapter: studyItem.chapter,
-            topic: `[REVISÃO] ${studyItem.topic.replace(" (continuação)", "")}`,
-            duration: Math.ceil(studyItem.duration / 2),
+            volume: volume.number,
+            volumeTitle: volume.title,
+            chapter: chapter.name,
+            topic: `[REVISÃO] ${topic.name}`,
+            duration: Math.ceil(duration / 2),
             type: "review",
             reviewDay,
-            completed: false,
-            originalStudyDate: studyItem.originalStudyDate,
+            completed: completedReviews.has(`review_${topicId}_${reviewDay}d`),
+            originalStudyDate: completionDate,
           });
         });
+
+        // Ir para o próximo tópico
+        currentTopicIndex++;
+        currentDate.setDate(currentDate.getDate() + 1);
+      } else {
+        // Se não foi concluído, repete no próximo dia (carryover)
+        currentDate.setDate(currentDate.getDate() + 1);
       }
-    });
+      
+      dayCount++;
+    }
 
     // Ordenar por data
     return items.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [startDate, includeComplementary, completedTopics]);
+  }, [startDate, includeComplementary, completedTopics, completedReviews]);
+
+  // Agrupar cronograma por data
+  const scheduleByDate = useMemo(() => {
+    const dates: { [key: string]: ScheduleItem[] } = {};
+
+    schedule.forEach((item) => {
+      const dateKey = item.date.toLocaleDateString("pt-BR");
+      if (!dates[dateKey]) {
+        dates[dateKey] = [];
+      }
+      dates[dateKey].push(item);
+    });
+
+    return dates;
+  }, [schedule]);
 
   // Agrupar cronograma por volume para melhor visualização
   const scheduleByVolume = useMemo(() => {
@@ -245,13 +231,11 @@ export default function StudyPlanner() {
     const completedStudyItems = studyItems.filter((item) => item.completed);
     const completedReviewItems = reviewItems.filter((item) => completedReviews.has(item.id));
     
-    // Calcular tempo SEPARADAMENTE: estudo vs revisões
     const completedStudyMinutes = completedStudyItems.reduce((acc, item) => acc + item.duration, 0);
     const totalStudyMinutes = studyItems.reduce((acc, item) => acc + item.duration, 0);
     
-    // NÃO somar revisões no tempo total de estudo
-    const completedMinutes = completedStudyMinutes;
     const totalMinutes = totalStudyMinutes;
+    const completedMinutes = completedStudyMinutes;
     const totalDays = new Set(schedule.map((item) => item.date.toDateString())).size;
     const endDate = schedule.length > 0 ? schedule[schedule.length - 1].date : new Date();
     const progressPercentage = studyItems.length > 0 
@@ -303,7 +287,7 @@ export default function StudyPlanner() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-foreground mb-2">Planejador de Cronograma</h1>
         <p className="text-muted-foreground mb-8">
-          Crie um cronograma personalizado com 2 horas diárias e marque tópicos como concluídos
+          Cronograma diário flexível: um tópico por dia, com revisões automáticas após conclusão
         </p>
 
         {/* Configurações */}
@@ -352,7 +336,7 @@ export default function StudyPlanner() {
           <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Tempo Concluído</p>
+                <p className="text-sm text-muted-foreground mb-1">Tempo de Estudo</p>
                 <p className="text-3xl font-bold text-green-600">{stats.completedHours}h</p>
                 <p className="text-xs text-muted-foreground">de {stats.totalHours}h</p>
               </div>
@@ -373,9 +357,8 @@ export default function StudyPlanner() {
           <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Revisões (Obrigação Extra)</p>
+                <p className="text-sm text-muted-foreground mb-1">Revisões (Extra)</p>
                 <p className="text-3xl font-bold text-purple-600">{stats.completedReviewItems}/{stats.reviewItems}</p>
-                <p className="text-xs text-muted-foreground">Fora das 2h/dia</p>
               </div>
               <BookOpen className="text-purple-500" size={32} />
             </div>
@@ -396,13 +379,13 @@ export default function StudyPlanner() {
 
         {/* Botão de Exportar */}
         <div className="mb-8">
-          <Button
+          <button
             onClick={exportCSV}
-            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
             <Download size={20} />
             Exportar como CSV
-          </Button>
+          </button>
         </div>
 
         {/* Cronograma por Volume */}
@@ -458,90 +441,57 @@ export default function StudyPlanner() {
 
                   {/* Conteúdo do Volume */}
                   {isExpanded && (
-                    <div className="p-6 space-y-3">
-                      {items.map((item, index) => {
-                        const topicId = item.id.replace("study_", "").split("_part")[0];
-                        const isStudyItem = item.type === "study";
-                        const isCompleted = isStudyItem 
-                          ? completedTopics.has(topicId) 
-                          : completedReviews.has(item.id);
-
-                        return (
-                          <div
-                            key={index}
-                            className={`p-4 rounded-lg border-l-4 transition-all ${
-                              isStudyItem
-                                ? isCompleted
-                                  ? "bg-green-50 border-green-500 opacity-60"
-                                  : "bg-blue-50 border-blue-500"
-                                : isCompleted
-                                ? "bg-purple-50 border-purple-500 opacity-60"
-                                : "bg-purple-50 border-purple-400"
-                            }`}
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="flex-1">
-                                <p className="font-semibold text-foreground">
-                                  {item.date.toLocaleDateString("pt-BR", {
-                                    weekday: "short",
-                                    day: "numeric",
-                                    month: "short",
-                                  })}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {item.chapter}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {isStudyItem && (
-                                  <button
-                                    onClick={() => toggleTopicCompletion(topicId)}
-                                    className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                                  >
-                                    {isCompleted ? (
-                                      <CheckCircle2 className="text-green-600" size={24} />
-                                    ) : (
-                                      <Circle className="text-gray-400" size={24} />
-                                    )}
-                                  </button>
-                                )}
-                                {!isStudyItem && (
-                                  <button
-                                    onClick={() => toggleReviewCompletion(item.id)}
-                                    className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                                  >
-                                    {isCompleted ? (
-                                      <CheckCircle2 className="text-purple-600" size={24} />
-                                    ) : (
-                                      <Circle className="text-gray-400" size={24} />
-                                    )}
-                                  </button>
-                                )}
-                                <span
-                                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    isStudyItem
-                                      ? isCompleted
-                                        ? "bg-green-200 text-green-800"
-                                        : "bg-blue-200 text-blue-800"
-                                      : isCompleted
-                                      ? "bg-purple-200 text-purple-800"
-                                      : "bg-purple-100 text-purple-700"
-                                  }`}
-                                >
-                                  {isStudyItem ? "Estudo" : "Revisão"}
-                                  {item.reviewDay && ` (${item.reviewDay}d)`}
+                    <div className="p-6 space-y-4">
+                      {items.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            item.completed
+                              ? "bg-green-50 border-green-200"
+                              : "bg-gray-50 border-gray-200"
+                          }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <button
+                              onClick={() => {
+                                if (item.type === "study") {
+                                  const topicId = item.id.split("_")[1];
+                                  toggleTopicCompletion(topicId);
+                                } else {
+                                  toggleReviewCompletion(item.id);
+                                }
+                              }}
+                              className="mt-1 flex-shrink-0"
+                            >
+                              {item.completed ? (
+                                <CheckCircle2 className="text-green-600" size={24} />
+                              ) : (
+                                <Circle className="text-gray-400" size={24} />
+                              )}
+                            </button>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                  {item.date.toLocaleDateString("pt-BR")}
+                                </span>
+                                <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                                  item.type === "study"
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-purple-100 text-purple-700"
+                                }`}>
+                                  {item.type === "study" ? "Estudo" : `Revisão (${item.reviewDay}d)`}
                                 </span>
                               </div>
+                              <h4 className={`font-semibold text-foreground ${item.completed ? "line-through text-gray-500" : ""}`}>
+                                {item.topic}
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {item.chapter} • ⏱️ {item.duration} minutos
+                              </p>
                             </div>
-                            <p className={`text-foreground font-medium mb-2 ${isCompleted ? "line-through" : ""}`}>
-                              {item.topic}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              ⏱️ {item.duration} minutos
-                            </p>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </Card>
@@ -549,33 +499,20 @@ export default function StudyPlanner() {
             })}
         </div>
 
-        {/* Resumo Final */}
-        <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 mt-8">
-          <h2 className="text-xl font-bold text-foreground mb-4">Resumo do Cronograma</h2>
-          <div className="space-y-2 text-sm text-foreground">
-            <p>
-              ✅ <strong>Progresso:</strong> {stats.completedStudyItems} de{" "}
-              {stats.studyItems} tópicos concluídos ({stats.progressPercentage}%)
-            </p>
-            <p>
-              📚 <strong>Total de Sessões:</strong> {stats.studyItems} aulas +{" "}
-              {stats.reviewItems} revisões ({stats.completedReviewItems} revisões concluídas)
-            </p>
-            <p>
-              ⏱️ <strong>Tempo Concluído:</strong> {stats.completedHours}h de {stats.totalHours}h ({stats.completedMinutes} de {stats.totalMinutes}{" "}
-              minutos)
-            </p>
-            <p>
-              📅 <strong>Período:</strong> {stats.totalDays} dias ({Math.ceil(stats.totalDays / 7)}{" "}
-              semanas)
-            </p>
-            <p>
-              🎯 <strong>Ritmo:</strong> {DAILY_STUDY_HOURS} horas por dia
-            </p>
-            <p>
-              ✨ <strong>Data Final Estimada:</strong>{" "}
-              {stats.endDate.toLocaleDateString("pt-BR")}
-            </p>
+        {/* Resumo */}
+        <Card className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 mt-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Resumo do Cronograma</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">✅ <strong>Progresso:</strong> {stats.completedStudyItems} de {stats.studyItems} tópicos concluídos ({stats.progressPercentage}%)</p>
+              <p className="text-muted-foreground mt-2">📚 <strong>Total de Sessões:</strong> {stats.studyItems} aulas + {stats.reviewItems} revisões ({stats.completedReviewItems} revisões concluídas)</p>
+              <p className="text-muted-foreground mt-2">⏱️ <strong>Tempo Concluído:</strong> {stats.completedHours}h de {stats.totalHours}h ({stats.completedMinutes} de {stats.totalMinutes} minutos)</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">📅 <strong>Período:</strong> {stats.totalDays} dias</p>
+              <p className="text-muted-foreground mt-2">🎯 <strong>Ritmo:</strong> Um tópico por dia (com carryover se não concluído)</p>
+              <p className="text-muted-foreground mt-2">✨ <strong>Data Final Estimada:</strong> {stats.endDate.toLocaleDateString("pt-BR")}</p>
+            </div>
           </div>
         </Card>
       </div>
