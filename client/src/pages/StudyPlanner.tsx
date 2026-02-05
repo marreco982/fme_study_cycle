@@ -245,10 +245,13 @@ export default function StudyPlanner() {
     const completedStudyItems = studyItems.filter((item) => item.completed);
     const completedReviewItems = reviewItems.filter((item) => completedReviews.has(item.id));
     
-    // Calcular tempo apenas de itens concluídos
-    const completedMinutes = completedStudyItems.reduce((acc, item) => acc + item.duration, 0) +
-                             completedReviewItems.reduce((acc, item) => acc + item.duration, 0);
-    const totalMinutes = schedule.reduce((acc, item) => acc + item.duration, 0);
+    // Calcular tempo SEPARADAMENTE: estudo vs revisões
+    const completedStudyMinutes = completedStudyItems.reduce((acc, item) => acc + item.duration, 0);
+    const totalStudyMinutes = studyItems.reduce((acc, item) => acc + item.duration, 0);
+    
+    // NÃO somar revisões no tempo total de estudo
+    const completedMinutes = completedStudyMinutes;
+    const totalMinutes = totalStudyMinutes;
     const totalDays = new Set(schedule.map((item) => item.date.toDateString())).size;
     const endDate = schedule.length > 0 ? schedule[schedule.length - 1].date : new Date();
     const progressPercentage = studyItems.length > 0 
@@ -370,8 +373,9 @@ export default function StudyPlanner() {
           <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Revisões</p>
+                <p className="text-sm text-muted-foreground mb-1">Revisões (Obrigação Extra)</p>
                 <p className="text-3xl font-bold text-purple-600">{stats.completedReviewItems}/{stats.reviewItems}</p>
+                <p className="text-xs text-muted-foreground">Fora das 2h/dia</p>
               </div>
               <BookOpen className="text-purple-500" size={32} />
             </div>

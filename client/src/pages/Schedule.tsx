@@ -437,15 +437,19 @@ export default function Schedule() {
     toast.success("Revisão removida");
   };
 
+  // Tempo de estudo (sem incluir revisões)
   const totalStudyTime = sessions.reduce((acc, s) => acc + s.duration, 0);
-  const reviewTimeCompleted = reviews.filter((r) => r.completed).length * 60;
-  const totalTimeIncludingReviews = totalStudyTime + reviewTimeCompleted;
+  
+  // Revisões são SEPARADAS do tempo de estudo
   const completedReviews = reviews.filter((r) => r.completed).length;
   const pendingReviews = reviews.filter((r) => !r.completed).length;
   const overdueReviews = reviews.filter(
     (r) => !r.completed && new Date(r.scheduledDate) < new Date()
   ).length;
   const totalTopicsCompleted = completedTopics.length;
+  
+  // NÃO incluir tempo de revisões nas horas de estudo
+  // Revisões são obrigações adicionais fora das 2h/dia
 
   const formatHours = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -464,7 +468,7 @@ export default function Schedule() {
           <Card className="p-6 bg-white border-0 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Tempo Total Estudado</p>
+                <p className="text-sm text-muted-foreground mb-1">Tempo de Estudo (2h/dia)</p>
                 <p className="text-3xl font-bold text-primary">{formatHours(totalStudyTime)}</p>
               </div>
               <Clock size={32} className="text-blue-500" />
