@@ -1,344 +1,192 @@
-import { Card } from "@/components/ui/card";
-import { fmeVolumes } from "@/data/fmeVolumes";
 import { useState, useMemo, useEffect } from "react";
-import { Calendar, Clock, BookOpen, AlertCircle, Download, CheckCircle2, Circle, ChevronDown, ChevronUp } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, Clock, BookOpen, AlertCircle, CheckCircle2, TrendingUp, Zap, ArrowRight } from "lucide-react";
+import { fmeVolumes } from "@/data/fmeVolumes";
 
-interface ScheduleItem {
+interface StudyLog {
   id: string;
-  date: Date;
-  volume: number;
-  volumeTitle: string;
+  date: string;
+  hours: number;
+  minutes: number;
+  volume: string;
+  volumeNumber: number;
   chapter: string;
   topic: string;
-  duration: number;
-  type: "study" | "review";
-  reviewDay?: number;
-  completed?: boolean;
-  originalStudyDate?: Date;
-  isCarryover?: boolean;
+  status: "continuing" | "completed" | "review";
+  generateReviews: boolean;
+  observations: string;
+  timestamp: Date;
+}
+
+interface ScheduledReview {
+  id: string;
+  topic: string;
+  daysAfter: number;
+  scheduledDate: Date;
+  completed: boolean;
 }
 
 export default function StudyPlanner() {
-  const [startDate, setStartDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
-  const [includeComplementary, setIncludeComplementary] = useState(false);
-  const [completedTopics, setCompletedTopics] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem("completedTopicsSchedule");
-    return new Set(saved ? JSON.parse(saved) : []);
+  // Carregar dados do Registrador
+  const [studyLogs, setStudyLogs] = useState<StudyLog[]>(() => {
+    const saved = localStorage.getItem("studyLogs");
+    return saved
+      ? JSON.parse(saved).map((log: any) => ({
+          ...log,
+          timestamp: new Date(log.timestamp),
+        }))
+      : [];
   });
 
-  const [completedReviews, setCompletedReviews] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem("completedReviewsSchedule");
-    return new Set(saved ? JSON.parse(saved) : []);
+  const [reviews, setReviews] = useState<ScheduledReview[]>(() => {
+    const saved = localStorage.getItem("scheduledReviews");
+    return saved
+      ? JSON.parse(saved).map((r: any) => ({
+          ...r,
+          scheduledDate: new Date(r.scheduledDate),
+        }))
+      : [];
   });
 
-  const [expandedVolumes, setExpandedVolumes] = useState<Set<number>>(() => {
-    const saved = localStorage.getItem("expandedVolumesSchedule");
-    return new Set(saved ? JSON.parse(saved) : [1]);
-  });
-
-  // Salvar tópicos concluídos no localStorage
-  useEffect(() => {
-    localStorage.setItem("completedTopicsSchedule", JSON.stringify(Array.from(completedTopics)));
-  }, [completedTopics]);
-
-  // Salvar revisões concluídas no localStorage
-  useEffect(() => {
-    localStorage.setItem("completedReviewsSchedule", JSON.stringify(Array.from(completedReviews)));
-  }, [completedReviews]);
-
-  // Salvar volumes expandidos no localStorage
-  useEffect(() => {
-    localStorage.setItem("expandedVolumesSchedule", JSON.stringify(Array.from(expandedVolumes)));
-  }, [expandedVolumes]);
-
-  // Calcular cronograma diário flexível
-  const schedule = useMemo(() => {
-    const items: ScheduleItem[] = [];
-    let currentDate = new Date(startDate);
-    let currentTopicIndex = 0;
-    const topicsToStudy: Array<{
-      volume: typeof fmeVolumes[0];
-      chapter: typeof fmeVolumes[0]["chapters"][0];
-      topic: typeof fmeVolumes[0]["chapters"][0]["topics"][0];
+  // Criar lista de todos os tópicos em ordem
+  const allTopics = useMemo(() => {
+    const topics: Array<{
+      id: string;
+      volume: string;
+      volumeNumber: number;
+      chapter: string;
+      topic: string;
+      durationMinutes: number;
     }> = [];
 
-    // Filtrar volumes e coletar todos os tópicos
-    const volumesToStudy = fmeVolumes.filter((vol) => {
-      if (includeComplementary) return true;
-      return vol.priority !== "complementary";
-    });
-
-    volumesToStudy.forEach((volume) => {
+    fmeVolumes.forEach((volume) => {
       volume.chapters.forEach((chapter) => {
         chapter.topics.forEach((topic) => {
-          topicsToStudy.push({ volume, chapter, topic });
-        });
-      });
-    });
-
-    // Gerar cronograma diário: um tópico por dia (ou carryover se não concluído)
-    // Limitar a 365 dias para evitar loop infinito
-    let dayCount = 0;
-    const MAX_DAYS = 365;
-    
-    while (currentTopicIndex < topicsToStudy.length && dayCount < MAX_DAYS) {
-      const { volume, chapter, topic } = topicsToStudy[currentTopicIndex];
-      const duration = topic.durationMinutes || 60;
-      const topicId = `${volume.id}_${chapter.id}_${topic.id}`;
-      const isCompleted = completedTopics.has(topicId);
-
-      // Adicionar tópico para o dia atual
-      items.push({
-        id: `study_${topicId}_${currentDate.toISOString().split("T")[0]}`,
-        date: new Date(currentDate),
-        volume: volume.number,
-        volumeTitle: volume.title,
-        chapter: chapter.name,
-        topic: topic.name,
-        duration,
-        type: "study",
-        completed: isCompleted,
-        originalStudyDate: new Date(currentDate),
-      });
-
-      // Se o tópico foi concluído, agendar revisões e ir para o próximo
-      if (isCompleted) {
-        const reviewDays = [1, 7, 14, 30, 90];
-        const completionDate = new Date(currentDate);
-
-        reviewDays.forEach((reviewDay) => {
-          const reviewDate = new Date(completionDate);
-          reviewDate.setDate(reviewDate.getDate() + reviewDay);
-
-          items.push({
-            id: `review_${topicId}_${reviewDay}d`,
-            date: reviewDate,
-            volume: volume.number,
-            volumeTitle: volume.title,
+          topics.push({
+            id: `${volume.id}_${chapter.id}_${topic.id}`,
+            volume: volume.title,
+            volumeNumber: volume.number,
             chapter: chapter.name,
-            topic: `[REVISÃO] ${topic.name}`,
-            duration: Math.ceil(duration / 2),
-            type: "review",
-            reviewDay,
-            completed: completedReviews.has(`review_${topicId}_${reviewDay}d`),
-            originalStudyDate: completionDate,
+            topic: topic.name,
+            durationMinutes: topic.durationMinutes || 60,
           });
         });
-
-        // Ir para o próximo tópico
-        currentTopicIndex++;
-        currentDate.setDate(currentDate.getDate() + 1);
-      } else {
-        // Se não foi concluído, repete no próximo dia (carryover)
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-      
-      dayCount++;
-    }
-
-    // Ordenar por data
-    return items.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [startDate, includeComplementary, completedTopics, completedReviews]);
-
-  // Agrupar cronograma por data
-  const scheduleByDate = useMemo(() => {
-    const dates: { [key: string]: ScheduleItem[] } = {};
-
-    schedule.forEach((item) => {
-      const dateKey = item.date.toLocaleDateString("pt-BR");
-      if (!dates[dateKey]) {
-        dates[dateKey] = [];
-      }
-      dates[dateKey].push(item);
+      });
     });
 
-    return dates;
-  }, [schedule]);
+    return topics;
+  }, []);
 
-  // Agrupar cronograma por volume para melhor visualização
-  const scheduleByVolume = useMemo(() => {
-    const volumes: { [key: number]: { title: string; items: ScheduleItem[] } } = {};
+  // Encontrar próximo tópico a estudar
+  const nextTopicToStudy = useMemo(() => {
+    // Encontrar quais tópicos foram marcados como "concluídos" no Registrador
+    const completedTopics = new Set(
+      studyLogs
+        .filter((log) => log.status === "completed")
+        .map((log) => `${log.volume}_${log.chapter}_${log.topic}`)
+    );
 
-    schedule.forEach((item) => {
-      if (!volumes[item.volume]) {
-        volumes[item.volume] = {
-          title: item.volumeTitle,
-          items: [],
-        };
+    // Encontrar o primeiro tópico não concluído
+    for (const topic of allTopics) {
+      const topicKey = `${topic.volume}_${topic.chapter}_${topic.topic}`;
+      if (!completedTopics.has(topicKey)) {
+        return topic;
       }
-      volumes[item.volume].items.push(item);
-    });
-
-    return volumes;
-  }, [schedule]);
-
-  // Calcular progresso por volume
-  const volumeProgress = useMemo(() => {
-    const progress: { [key: number]: { completed: number; total: number; percentage: number } } = {};
-
-    Object.entries(scheduleByVolume).forEach(([volumeNum, { items }]) => {
-      const studyItems = items.filter((item) => item.type === "study");
-      const completedItems = studyItems.filter((item) => item.completed);
-      progress[parseInt(volumeNum)] = {
-        completed: completedItems.length,
-        total: studyItems.length,
-        percentage: studyItems.length > 0 ? Math.round((completedItems.length / studyItems.length) * 100) : 0,
-      };
-    });
-
-    return progress;
-  }, [scheduleByVolume]);
-
-  // Alternar conclusão de tópico
-  const toggleTopicCompletion = (topicId: string) => {
-    const newCompleted = new Set(completedTopics);
-    if (newCompleted.has(topicId)) {
-      newCompleted.delete(topicId);
-    } else {
-      newCompleted.add(topicId);
     }
-    setCompletedTopics(newCompleted);
-  };
 
-  // Alternar conclusão de revisão
-  const toggleReviewCompletion = (reviewId: string) => {
-    const newCompleted = new Set(completedReviews);
-    if (newCompleted.has(reviewId)) {
-      newCompleted.delete(reviewId);
-    } else {
-      newCompleted.add(reviewId);
-    }
-    setCompletedReviews(newCompleted);
-  };
+    return null;
+  }, [studyLogs, allTopics]);
 
-  // Alternar expansão de volume
-  const toggleVolumeExpansion = (volumeNum: number) => {
-    const newExpanded = new Set(expandedVolumes);
-    if (newExpanded.has(volumeNum)) {
-      newExpanded.delete(volumeNum);
-    } else {
-      newExpanded.add(volumeNum);
-    }
-    setExpandedVolumes(newExpanded);
-  };
-
-  // Estatísticas
+  // Calcular estatísticas
   const stats = useMemo(() => {
-    const studyItems = schedule.filter((item) => item.type === "study");
-    const reviewItems = schedule.filter((item) => item.type === "review");
-    const completedStudyItems = studyItems.filter((item) => item.completed);
-    const completedReviewItems = reviewItems.filter((item) => completedReviews.has(item.id));
-    
-    const completedStudyMinutes = completedStudyItems.reduce((acc, item) => acc + item.duration, 0);
-    const totalStudyMinutes = studyItems.reduce((acc, item) => acc + item.duration, 0);
-    
-    const totalMinutes = totalStudyMinutes;
-    const completedMinutes = completedStudyMinutes;
-    const totalDays = new Set(schedule.map((item) => item.date.toDateString())).size;
-    const endDate = schedule.length > 0 ? schedule[schedule.length - 1].date : new Date();
-    const progressPercentage = studyItems.length > 0 
-      ? Math.round((completedStudyItems.length / studyItems.length) * 100) 
-      : 0;
+    const totalMinutesStudied = studyLogs.reduce((acc, log) => acc + log.hours * 60 + log.minutes, 0);
+    const totalHoursStudied = Math.floor(totalMinutesStudied / 60);
+    const remainingMinutes = totalMinutesStudied % 60;
+
+    const completedTheories = studyLogs.filter((log) => log.status === "completed").length;
+    const continuingStudies = studyLogs.filter((log) => log.status === "continuing").length;
+    const completedReviews = reviews.filter((r) => r.completed).length;
+    const pendingReviews = reviews.filter((r) => !r.completed).length;
+    const overdueReviews = reviews.filter(
+      (r) => !r.completed && new Date(r.scheduledDate) < new Date()
+    ).length;
+
+    const progressPercentage = Math.round((completedTheories / allTopics.length) * 100);
 
     return {
-      studyItems: studyItems.length,
-      completedStudyItems: completedStudyItems.length,
-      reviewItems: reviewItems.length,
-      completedReviewItems: completedReviewItems.length,
-      totalMinutes,
-      completedMinutes,
-      totalHours: Math.round((totalMinutes / 60) * 10) / 10,
-      completedHours: Math.round((completedMinutes / 60) * 10) / 10,
-      totalDays,
-      endDate,
+      totalHoursStudied,
+      remainingMinutes,
+      completedTheories,
+      continuingStudies,
+      completedReviews,
+      pendingReviews,
+      overdueReviews,
       progressPercentage,
+      totalTopics: allTopics.length,
     };
-  }, [schedule, completedReviews]);
+  }, [studyLogs, reviews, allTopics]);
 
-  // Exportar como CSV
-  const exportCSV = () => {
-    const csv = [
-      ["Data", "Volume", "Capítulo", "Tópico", "Duração (min)", "Tipo", "Status"].join(","),
-      ...schedule.map((item) =>
-        [
-          item.date.toLocaleDateString("pt-BR"),
-          `Vol ${item.volume}`,
-          item.chapter,
-          item.topic,
-          item.duration,
-          item.type === "study" ? "Estudo" : "Revisão",
-          item.completed ? "Concluído" : "Pendente",
-        ].join(",")
-      ),
-    ].join("\n");
+  // Agrupar estudos por volume
+  const studiesByVolume = useMemo(() => {
+    const grouped: { [key: string]: StudyLog[] } = {};
 
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cronograma-fme-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
+    studyLogs.forEach((log) => {
+      if (!grouped[log.volume]) {
+        grouped[log.volume] = [];
+      }
+      grouped[log.volume].push(log);
+    });
+
+    return grouped;
+  }, [studyLogs]);
+
+  // Próximas revisões vencidas
+  const overdueReviewsList = useMemo(() => {
+    return reviews
+      .filter((r) => !r.completed && new Date(r.scheduledDate) < new Date())
+      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+      .slice(0, 5);
+  }, [reviews]);
+
+  const toggleReviewCompletion = (reviewId: string) => {
+    const newReviews = reviews.map((r) =>
+      r.id === reviewId ? { ...r, completed: !r.completed } : r
+    );
+    setReviews(newReviews);
+    localStorage.setItem("scheduledReviews", JSON.stringify(newReviews));
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-foreground mb-2">Planejador de Cronograma</h1>
-        <p className="text-muted-foreground mb-8">
-          Cronograma diário flexível: um tópico por dia, com revisões automáticas após conclusão
-        </p>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Planejador & Progresso</h1>
+        <p className="text-muted-foreground mb-8">Acompanhe seu progresso real vs. planejado</p>
 
-        {/* Configurações */}
-        <Card className="p-6 bg-white shadow-sm mb-8">
-          <h2 className="text-xl font-bold text-foreground mb-4">Configurações</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Data de Início
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeComplementary}
-                  onChange={(e) => setIncludeComplementary(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm font-medium text-foreground">
-                  Incluir volumes complementares
-                </span>
-              </label>
-            </div>
-          </div>
-        </Card>
-
-        {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        {/* Estatísticas Principais */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
           <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Progresso</p>
-                <p className="text-3xl font-bold text-primary">{stats.progressPercentage}%</p>
+                <p className="text-xs text-muted-foreground mb-1">Progresso</p>
+                <p className="text-3xl font-bold text-blue-600">{stats.progressPercentage}%</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats.completedTheories}/{stats.totalTopics}
+                </p>
               </div>
-              <CheckCircle2 className="text-blue-500" size={32} />
+              <TrendingUp className="text-blue-500" size={32} />
             </div>
           </Card>
 
           <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Tempo de Estudo</p>
-                <p className="text-3xl font-bold text-green-600">{stats.completedHours}h</p>
-                <p className="text-xs text-muted-foreground">de {stats.totalHours}h</p>
+                <p className="text-xs text-muted-foreground mb-1">Tempo Total</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {stats.totalHoursStudied}h
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{stats.remainingMinutes}m</p>
               </div>
               <Clock className="text-green-500" size={32} />
             </div>
@@ -347,18 +195,9 @@ export default function StudyPlanner() {
           <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Dias de Estudo</p>
-                <p className="text-3xl font-bold text-blue-600">{stats.totalDays}</p>
-              </div>
-              <Calendar className="text-blue-500" size={32} />
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-white shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Revisões (Extra)</p>
-                <p className="text-3xl font-bold text-purple-600">{stats.completedReviewItems}/{stats.reviewItems}</p>
+                <p className="text-xs text-muted-foreground mb-1">Teorias</p>
+                <p className="text-3xl font-bold text-purple-600">{stats.completedTheories}</p>
+                <p className="text-xs text-muted-foreground mt-1">concluídas</p>
               </div>
               <BookOpen className="text-purple-500" size={32} />
             </div>
@@ -367,154 +206,244 @@ export default function StudyPlanner() {
           <Card className="p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Data Final</p>
-                <p className="text-lg font-bold text-orange-600">
-                  {stats.endDate.toLocaleDateString("pt-BR")}
+                <p className="text-xs text-muted-foreground mb-1">Revisões</p>
+                <p className="text-3xl font-bold text-indigo-600">
+                  {stats.completedReviews}/{reviews.length}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">concluídas</p>
+              </div>
+              <CheckCircle2 className="text-indigo-500" size={32} />
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-white shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Pendentes</p>
+                <p className="text-3xl font-bold text-orange-600">{stats.pendingReviews}</p>
+                <p className="text-xs text-muted-foreground mt-1">revisões</p>
               </div>
               <AlertCircle className="text-orange-500" size={32} />
             </div>
           </Card>
+
+          <Card className="p-6 bg-white shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Vencidas</p>
+                <p className="text-3xl font-bold text-red-600">{stats.overdueReviews}</p>
+                <p className="text-xs text-muted-foreground mt-1">urgentes</p>
+              </div>
+              <Zap className="text-red-500" size={32} />
+            </div>
+          </Card>
         </div>
 
-        {/* Botão de Exportar */}
-        <div className="mb-8">
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-          >
-            <Download size={20} />
-            Exportar como CSV
-          </button>
-        </div>
+        {/* Abas */}
+        <Tabs defaultValue="next" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="next">Próximo Tópico</TabsTrigger>
+            <TabsTrigger value="progress">Progresso</TabsTrigger>
+            <TabsTrigger value="reviews">Revisões Vencidas</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
+          </TabsList>
 
-        {/* Cronograma por Volume */}
-        <div className="space-y-6">
-          {Object.entries(scheduleByVolume)
-            .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
-            .map(([volumeNum, { title, items }]) => {
-              const volumeNumber = parseInt(volumeNum);
-              const isExpanded = expandedVolumes.has(volumeNumber);
-              const progress = volumeProgress[volumeNumber];
-              const studyItems = items.filter((item) => item.type === "study");
-              const reviewItems = items.filter((item) => item.type === "review");
+          {/* Aba: Próximo Tópico */}
+          <TabsContent value="next">
+            <Card className="p-8 bg-white shadow-sm">
+              <h2 className="text-2xl font-bold text-foreground mb-6">Próximo Tópico a Estudar</h2>
 
-              return (
-                <Card key={volumeNum} className="bg-white shadow-sm overflow-hidden">
-                  {/* Cabeçalho do Volume */}
-                  <div
-                    onClick={() => toggleVolumeExpansion(volumeNumber)}
-                    className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 cursor-pointer hover:from-blue-100 hover:to-blue-150 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        {isExpanded ? (
-                          <ChevronUp className="text-blue-600" size={24} />
-                        ) : (
-                          <ChevronDown className="text-blue-600" size={24} />
-                        )}
-                        <div>
-                          <h3 className="text-lg font-bold text-foreground">
-                            Volume {volumeNumber}: {title}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {progress.completed} de {progress.total} tópicos concluídos
-                          </p>
-                        </div>
+              {nextTopicToStudy ? (
+                <div className="space-y-6">
+                  <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Volume {nextTopicToStudy.volumeNumber}</p>
+                        <h3 className="text-3xl font-bold text-foreground mb-2">{nextTopicToStudy.topic}</h3>
+                        <p className="text-lg text-muted-foreground">{nextTopicToStudy.chapter}</p>
                       </div>
                       <div className="text-right">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-green-500 transition-all"
-                              style={{ width: `${progress.percentage}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-semibold text-foreground">{progress.percentage}%</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {studyItems.length} aulas + {reviewItems.length} revisões
+                        <p className="text-4xl font-bold text-blue-600">
+                          {Math.floor(nextTopicToStudy.durationMinutes / 60)}h {nextTopicToStudy.durationMinutes % 60}m
                         </p>
+                        <p className="text-sm text-muted-foreground mt-1">tempo estimado</p>
                       </div>
+                    </div>
+
+                    <div className="flex gap-4 mt-6">
+                      <Button className="flex-1 bg-blue-600 text-white hover:bg-blue-700">
+                        <ArrowRight className="mr-2" size={20} />
+                        Ir para Registrador
+                      </Button>
                     </div>
                   </div>
 
-                  {/* Conteúdo do Volume */}
-                  {isExpanded && (
-                    <div className="p-6 space-y-4">
-                      {items.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            item.completed
-                              ? "bg-green-50 border-green-200"
-                              : "bg-gray-50 border-gray-200"
-                          }`}
-                        >
-                          <div className="flex items-start gap-4">
-                            <button
-                              onClick={() => {
-                                if (item.type === "study") {
-                                  const topicId = item.id.split("_")[1];
-                                  toggleTopicCompletion(topicId);
-                                } else {
-                                  toggleReviewCompletion(item.id);
-                                }
-                              }}
-                              className="mt-1 flex-shrink-0"
-                            >
-                              {item.completed ? (
-                                <CheckCircle2 className="text-green-600" size={24} />
-                              ) : (
-                                <Circle className="text-gray-400" size={24} />
-                              )}
-                            </button>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                                  {item.date.toLocaleDateString("pt-BR")}
-                                </span>
-                                <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                                  item.type === "study"
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-purple-100 text-purple-700"
-                                }`}>
-                                  {item.type === "study" ? "Estudo" : `Revisão (${item.reviewDay}d)`}
-                                </span>
-                              </div>
-                              <h4 className={`font-semibold text-foreground ${item.completed ? "line-through text-gray-500" : ""}`}>
-                                {item.topic}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                {item.chapter} • ⏱️ {item.duration} minutos
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
-        </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="p-4 bg-slate-50">
+                      <p className="text-sm text-muted-foreground mb-2">Posição na Fila</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {stats.completedTheories + 1} de {stats.totalTopics}
+                      </p>
+                    </Card>
 
-        {/* Resumo */}
-        <Card className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 mt-8">
-          <h2 className="text-2xl font-bold text-foreground mb-4">Resumo do Cronograma</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">✅ <strong>Progresso:</strong> {stats.completedStudyItems} de {stats.studyItems} tópicos concluídos ({stats.progressPercentage}%)</p>
-              <p className="text-muted-foreground mt-2">📚 <strong>Total de Sessões:</strong> {stats.studyItems} aulas + {stats.reviewItems} revisões ({stats.completedReviewItems} revisões concluídas)</p>
-              <p className="text-muted-foreground mt-2">⏱️ <strong>Tempo Concluído:</strong> {stats.completedHours}h de {stats.totalHours}h ({stats.completedMinutes} de {stats.totalMinutes} minutos)</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">📅 <strong>Período:</strong> {stats.totalDays} dias</p>
-              <p className="text-muted-foreground mt-2">🎯 <strong>Ritmo:</strong> Um tópico por dia (com carryover se não concluído)</p>
-              <p className="text-muted-foreground mt-2">✨ <strong>Data Final Estimada:</strong> {stats.endDate.toLocaleDateString("pt-BR")}</p>
-            </div>
-          </div>
-        </Card>
+                    <Card className="p-4 bg-slate-50">
+                      <p className="text-sm text-muted-foreground mb-2">Tópicos Restantes</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {stats.totalTopics - stats.completedTheories}
+                      </p>
+                    </Card>
+
+                    <Card className="p-4 bg-slate-50">
+                      <p className="text-sm text-muted-foreground mb-2">Tempo Restante (aprox)</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {Math.round(
+                          ((stats.totalTopics - stats.completedTheories) * 60) / 60
+                        )}h
+                      </p>
+                    </Card>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <CheckCircle2 className="mx-auto mb-4 text-green-500" size={48} />
+                  <h3 className="text-2xl font-bold text-foreground mb-2">Parabéns!</h3>
+                  <p className="text-muted-foreground">Você completou todos os tópicos!</p>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* Aba: Progresso */}
+          <TabsContent value="progress">
+            <Card className="p-8 bg-white shadow-sm">
+              <h2 className="text-2xl font-bold text-foreground mb-6">Progresso por Volume</h2>
+
+              <div className="space-y-6">
+                {Object.entries(studiesByVolume).map(([volumeName, logs]) => {
+                  const volume = fmeVolumes.find((v) => v.title === volumeName);
+                  const completedCount = logs.filter((l) => l.status === "completed").length;
+                  const percentage = Math.round((completedCount / logs.length) * 100);
+
+                  return (
+                    <div key={volumeName} className="p-6 border border-border rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">{volumeName}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {completedCount} de {logs.length} tópicos concluídos
+                          </p>
+                        </div>
+                        <p className="text-3xl font-bold text-blue-600">{percentage}%</p>
+                      </div>
+
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {Object.keys(studiesByVolume).length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum estudo registrado ainda. Comece a estudar!
+                  </p>
+                )}
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* Aba: Revisões Vencidas */}
+          <TabsContent value="reviews">
+            <Card className="p-8 bg-white shadow-sm">
+              <h2 className="text-2xl font-bold text-foreground mb-6">Revisões Vencidas</h2>
+
+              {overdueReviewsList.length > 0 ? (
+                <div className="space-y-4">
+                  {overdueReviewsList.map((review) => {
+                    const daysOverdue = Math.floor(
+                      (new Date().getTime() - new Date(review.scheduledDate).getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    );
+
+                    return (
+                      <div
+                        key={review.id}
+                        className="p-4 bg-red-50 border-2 border-red-200 rounded-lg flex items-center justify-between"
+                      >
+                        <div>
+                          <p className="font-semibold text-foreground">{review.topic}</p>
+                          <p className="text-sm text-red-600">
+                            Vencida há {daysOverdue} dia{daysOverdue !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => toggleReviewCompletion(review.id)}
+                          className="bg-red-600 text-white hover:bg-red-700"
+                        >
+                          Marcar como Concluída
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <CheckCircle2 className="mx-auto mb-4 text-green-500" size={48} />
+                  <h3 className="text-2xl font-bold text-foreground mb-2">Tudo em dia!</h3>
+                  <p className="text-muted-foreground">Não há revisões vencidas.</p>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* Aba: Histórico */}
+          <TabsContent value="history">
+            <Card className="p-8 bg-white shadow-sm">
+              <h2 className="text-2xl font-bold text-foreground mb-6">Histórico de Estudos</h2>
+
+              {studyLogs.length > 0 ? (
+                <div className="space-y-3">
+                  {studyLogs
+                    .slice()
+                    .reverse()
+                    .slice(0, 20)
+                    .map((log) => (
+                      <div
+                        key={log.id}
+                        className="p-4 border border-border rounded-lg flex items-start justify-between hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                              {log.date}
+                            </span>
+                            <span
+                              className={`text-xs font-semibold px-2 py-1 rounded ${
+                                log.status === "completed"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {log.status === "completed" ? "Concluído" : "Continuando"}
+                            </span>
+                          </div>
+                          <h3 className="font-semibold text-foreground">{log.topic}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {log.volume} • {log.chapter} • {log.hours}h {log.minutes}m
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">Nenhum estudo registrado ainda</p>
+              )}
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
