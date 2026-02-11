@@ -12,6 +12,7 @@ import Calendar from "./pages/Calendar";
 import Schedule from "./pages/Schedule";
 import Dashboard from "./pages/Dashboard";
 import StudyPlanner from "./pages/StudyPlanner";
+import StrategicSchedule from "./pages/StrategicSchedule";
 
 function Router({ activeSection, onSectionChange }: { activeSection: string; onSectionChange: (section: string) => void }) {
   return (
@@ -34,6 +35,9 @@ function Router({ activeSection, onSectionChange }: { activeSection: string; onS
       <Route path={"/study-planner"}>
         {() => <StudyPlanner />}
       </Route>
+      <Route path={"/strategic-schedule"}>
+        {() => <StrategicSchedule />}
+      </Route>
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -53,6 +57,7 @@ function App() {
     if (section === "schedule") window.location.href = "/schedule";
     if (section === "dashboard") window.location.href = "/dashboard";
     if (section === "study-planner") window.location.href = "/study-planner";
+    if (section === "strategic-schedule") window.location.href = "/strategic-schedule";
   };
 
   return (
