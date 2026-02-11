@@ -2,12 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { strategicSchedule, ScheduleWeek } from '@/data/strategicSchedule';
-import { ChevronRight, BookOpen, Zap, Target } from 'lucide-react';
+import { ChevronRight, BookOpen, Zap, Target, Play } from 'lucide-react';
+import { useLocation } from 'wouter';
 
 export default function StrategicSchedule() {
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedPhase, setSelectedPhase] = useState<string>('FASE 1: Fundamentos');
+  const [, setLocation] = useLocation();
 
   const phases = useMemo(() => {
     const uniquePhases = Array.from(new Set(strategicSchedule.map(s => s.phase)));
@@ -57,6 +60,25 @@ export default function StrategicSchedule() {
 
   const getTotalQuestions = (topics: any[]) => {
     return topics.reduce((sum, topic) => sum + (topic.practiceQuestions || 0), 0);
+  };
+
+  const handleStartWeek = () => {
+    if (currentWeek) {
+      // Salvar os tópicos da semana no localStorage
+      const weekTopics = currentWeek.topics.map(topic => ({
+        id: topic.id,
+        name: topic.name,
+        volumeId: topic.volumeId,
+        estimatedHours: topic.estimatedHours,
+        practiceQuestions: topic.practiceQuestions,
+      }));
+      localStorage.setItem('currentWeekTopics', JSON.stringify(weekTopics));
+      localStorage.setItem('currentWeekNumber', String(currentWeek.week));
+      localStorage.setItem('currentWeekTitle', currentWeek.title);
+      
+      // Navegar para o Registrador
+      setLocation('/schedule');
+    }
   };
 
   return (
@@ -239,6 +261,16 @@ export default function StrategicSchedule() {
                     <div className="border-t pt-4">
                       <p className="text-sm font-medium text-slate-900 mb-3">Notas:</p>
                       <p className="text-sm text-slate-600 italic">{currentWeek.notes}</p>
+                    </div>
+
+                    <div className="border-t pt-4 flex gap-2">
+                      <Button
+                        onClick={handleStartWeek}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                      >
+                        <Play className="w-4 h-4" />
+                        Iniciar Semana
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

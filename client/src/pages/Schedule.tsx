@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock, CheckCircle2, BookOpen, Trash2, AlertCircle, Send, RotateCcw } from "lucide-react";
+import { Clock, CheckCircle2, BookOpen, Trash2, AlertCircle, Send, RotateCcw, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { fmeVolumes } from "@/data/fmeVolumes";
 
@@ -69,6 +69,21 @@ export default function Schedule() {
 
   const [selectedVolume, setSelectedVolume] = useState<typeof fmeVolumes[0] | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<typeof fmeVolumes[0]["chapters"][0] | null>(null);
+  const [weekInfo, setWeekInfo] = useState<{ number: string; title: string } | null>(null);
+
+  // Carregar topicos da semana do localStorage
+  useEffect(() => {
+    const weekNumber = localStorage.getItem('currentWeekNumber');
+    const weekTitle = localStorage.getItem('currentWeekTitle');
+    
+    if (weekNumber && weekTitle) {
+      setWeekInfo({ number: weekNumber, title: weekTitle });
+      setTimeout(() => {
+        localStorage.removeItem('currentWeekNumber');
+        localStorage.removeItem('currentWeekTitle');
+      }, 5000);
+    }
+  }, []);
 
   // Salvar study logs
   useEffect(() => {
@@ -208,6 +223,12 @@ export default function Schedule() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-foreground mb-2">Cronograma de Estudos</h1>
         <p className="text-muted-foreground mb-8">Registre suas sessões de estudo e acompanhe seu progresso</p>
+
+        {weekInfo && (
+          <Card className="p-4 bg-blue-50 border-blue-200 mb-8">
+            <p className="text-sm text-blue-600 font-medium">Semana {weekInfo.number} Iniciada: {weekInfo.title}</p>
+          </Card>
+        )}
 
         {/* Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
