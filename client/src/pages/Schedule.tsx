@@ -85,6 +85,28 @@ export default function Schedule() {
     }
   }, []);
 
+  // Pre-selecionar o primeiro topico da semana
+  useEffect(() => {
+    const selectedVolumeId = localStorage.getItem('selectedVolumeId');
+    const selectedChapterId = localStorage.getItem('selectedChapterId');
+    const selectedTopicId = localStorage.getItem('selectedTopicId');
+    
+    if (selectedVolumeId && selectedChapterId && selectedTopicId) {
+      setFormData(prev => ({
+        ...prev,
+        volume: selectedVolumeId,
+        chapter: selectedChapterId,
+        topic: selectedTopicId
+      }));
+      
+      setTimeout(() => {
+        localStorage.removeItem('selectedVolumeId');
+        localStorage.removeItem('selectedChapterId');
+        localStorage.removeItem('selectedTopicId');
+      }, 500);
+    }
+  }, []);
+
   // Salvar study logs
   useEffect(() => {
     localStorage.setItem("studyLogs", JSON.stringify(studyLogs));

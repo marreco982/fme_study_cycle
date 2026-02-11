@@ -63,7 +63,7 @@ export default function StrategicSchedule() {
   };
 
   const handleStartWeek = () => {
-    if (currentWeek) {
+    if (currentWeek && currentWeek.topics.length > 0) {
       // Salvar os tópicos da semana no localStorage
       const weekTopics = currentWeek.topics.map(topic => ({
         id: topic.id,
@@ -75,6 +75,12 @@ export default function StrategicSchedule() {
       localStorage.setItem('currentWeekTopics', JSON.stringify(weekTopics));
       localStorage.setItem('currentWeekNumber', String(currentWeek.week));
       localStorage.setItem('currentWeekTitle', currentWeek.title);
+      
+      // Salvar o primeiro tópico para pré-seleção automática
+      const firstTopic = currentWeek.topics[0];
+      localStorage.setItem('selectedVolumeId', firstTopic.volumeId);
+      localStorage.setItem('selectedChapterId', firstTopic.chapterId);
+      localStorage.setItem('selectedTopicId', firstTopic.topicId);
       
       // Navegar para o Registrador
       setLocation('/schedule');
