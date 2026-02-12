@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { PreselectionProvider } from "./contexts/PreselectionContext";
 import Home from "./pages/Home";
 import Guide from "./pages/Guide";
 import Calendar from "./pages/Calendar";
@@ -62,13 +63,15 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
-          <Router activeSection={activeSection} onSectionChange={handleSectionChange} />
-        </TooltipProvider>
-      </ThemeProvider>
+      <PreselectionProvider>
+        <ThemeProvider defaultTheme="light">
+          <TooltipProvider>
+            <Toaster />
+            <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
+            <Router activeSection={activeSection} onSectionChange={handleSectionChange} />
+          </TooltipProvider>
+        </ThemeProvider>
+      </PreselectionProvider>
     </ErrorBoundary>
   );
 }

@@ -1,16 +1,27 @@
-import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { strategicSchedule, ScheduleWeek } from '@/data/strategicSchedule';
-import { ChevronRight, BookOpen, Zap, Target, Play } from 'lucide-react';
+import { ChevronRight, BookOpen, Zap, Target, Play, CheckCircle } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useState, useEffect, useMemo } from 'react';
+import { usePreselection } from '@/contexts/PreselectionContext';
 
 export default function StrategicSchedule() {
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedPhase, setSelectedPhase] = useState<string>('FASE 1: Fundamentos');
+  const [activeWeek, setActiveWeek] = useState<number | null>(null);
   const [, setLocation] = useLocation();
+  const { setPreselectionData } = usePreselection();
+
+  // Carregar semana ativa do localStorage
+  useEffect(() => {
+    const currentWeekNumber = localStorage.getItem('currentWeekNumber');
+    if (currentWeekNumber) {
+      setActiveWeek(parseInt(currentWeekNumber));
+    }
+  }, []);
 
   const phases = useMemo(() => {
     const uniquePhases = Array.from(new Set(strategicSchedule.map(s => s.phase)));
@@ -62,9 +73,13 @@ export default function StrategicSchedule() {
     return topics.reduce((sum, topic) => sum + (topic.practiceQuestions || 0), 0);
   };
 
+  const isWeekActive = (weekNumber: number) => {
+    return activeWeek === weekNumber;
+  };
+
   const handleStartWeek = () => {
     if (currentWeek && currentWeek.topics.length > 0) {
-      // Salvar os tópicos da semana no localStorage
+      // Salvar os tópicos da semana no sessionStorage
       const weekTopics = currentWeek.topics.map(topic => ({
         id: topic.id,
         name: topic.name,
@@ -72,15 +87,29 @@ export default function StrategicSchedule() {
         estimatedHours: topic.estimatedHours,
         practiceQuestions: topic.practiceQuestions,
       }));
-      localStorage.setItem('currentWeekTopics', JSON.stringify(weekTopics));
-      localStorage.setItem('currentWeekNumber', String(currentWeek.week));
-      localStorage.setItem('currentWeekTitle', currentWeek.title);
+      sessionStorage.setItem('currentWeekTopics', JSON.stringify(weekTopics));
+      sessionStorage.setItem('currentWeekNumber', String(currentWeek.week));
+      sessionStorage.setItem('currentWeekTitle', currentWeek.title);
       
       // Salvar o primeiro tópico para pré-seleção automática
       const firstTopic = currentWeek.topics[0];
-      localStorage.setItem('selectedVolumeId', firstTopic.volumeId);
-      localStorage.setItem('selectedChapterId', firstTopic.chapterId);
-      localStorage.setItem('selectedTopicId', firstTopic.topicId);
+      
+      // Salvar no localStorage para garantir persistência durante navegação
+      localStorage.setItem('preselectionData', JSON.stringify({
+        volumeId: firstTopic.volumeId,
+        chapterId: firstTopic.chapterId,
+        topicId: firstTopic.topicId,
+      }));
+      
+      // Também atualizar o contexto
+      setPreselectionData({
+        volumeId: firstTopic.volumeId,
+        chapterId: firstTopic.chapterId,
+        topicId: firstTopic.topicId,
+      });
+      
+      // Atualizar semana ativa
+      setActiveWeek(currentWeek.week);
       
       // Navegar para o Registrador
       setLocation('/schedule');
@@ -175,17 +204,23 @@ export default function StrategicSchedule() {
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {weeks.map(w => (
-                        <Badge
-                          key={w.week}
-                          variant={selectedWeek === w.week ? 'default' : 'secondary'}
-                          className="cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedWeek(w.week);
-                          }}
-                        >
-                          S{w.week}
-                        </Badge>
+                        <div key={w.week} className="relative">
+                          {isWeekActive(w.week) && (
+                            <div className="absolute -top-2 -right-2 bg-green-500 rounded-full p-1">
+                              <CheckCircle size={16} className="text-white" />
+                            </div>
+                          )}
+                          <Badge
+                            variant={selectedWeek === w.week ? 'default' : 'secondary'}
+                            className={`cursor-pointer ${isWeekActive(w.week) ? 'ring-2 ring-green-500' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedWeek(w.week);
+                            }}
+                          >
+                            S{w.week}
+                          </Badge>
+                        </div>
                       ))}
                     </div>
                   </CardContent>
